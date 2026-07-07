@@ -1,0 +1,9 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* keep inline-code styling from bleeding into code blocks */
+pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
