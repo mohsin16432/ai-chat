@@ -121,19 +121,6 @@ async function downscaleImage(file, maxDim = 1568) {
   }
 }
 
-function getActiveModel(chatId) {
-  const chat = chats.find((c) => c.id === chatId);
-  if (chat?.model) {
-    return getModelById(chat.model);
-  }
-  return getModelById(settings.defaultModelId);
-}
-
-function modelSupports(model, capability) {
-  if (!model) return false;
-  return !!model.capabilities[capability];
-}
-
 /* ---------------- Auth ---------------- */
 
 function AuthScreen() {
@@ -951,7 +938,7 @@ Title:`;
           </div>
         )}
 
-        <div className="flex items-end gap-2 border-t border-zinc-800 p-3">
+        <div className="flex items-end gap-2 border-t border-zinc-800 p-3 pb-safe">
           <input
             ref={fileInputRef} type="file" accept="image/*" multiple hidden
             onChange={(e) => setFiles([...files, ...Array.from(e.target.files)])}
