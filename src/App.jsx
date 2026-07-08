@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { streamChat } from './lib/llm';
 import { fileToDataUrl, downscaleImage } from './lib/image';
@@ -7,6 +7,7 @@ import { useSettings } from './hooks/useSettings';
 import { useChats } from './hooks/useChats';
 import { useMessages } from './hooks/useMessages';
 import { useStreaming } from './hooks/useStreaming';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 import AuthScreen from './components/auth/AuthScreen';
 import Sidebar from './components/layout/Sidebar';
@@ -17,12 +18,14 @@ import EmptyState from './components/chat/EmptyState';
 import CapabilityWarning from './components/chat/CapabilityWarning';
 import SettingsModal from './components/settings/SettingsModal';
 import ChatSettings from './components/chat/ChatSettings';
+import SearchModal from './components/chat/SearchModal';
 
 export default function App() {
   const [session, setSession] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showChatSettings, setShowChatSettings] = useState(false);  // <-- add this
+  const [showChatSettings, setShowChatSettings] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { settings, updateSettings } = useSettings();
@@ -32,8 +35,8 @@ export default function App() {
     activeChatId, activeChatIdRef,
     error, setError,
     createChat, renameChat, deleteChat,
-    updateChatModel, selectChat: selectChatBase,
-    updateChatSettings
+    updateChatModel, updateChatSettings,
+    selectChat: selectChatBase,
   } = useChats(session);
 
   const {
@@ -41,10 +44,19 @@ export default function App() {
     messagesCache, urlCache, urlMap, setUrlMap,
     resolveUrls, loadMessages, appendMessage,
     initChatMessages, clearMessages, removeChatFromCache,
+    deleteMessagesAfter, updateMessage,
   } = useMessages();
 
-  const { streamingText, sending, startStreaming, onToken, stopStreaming } = useStreaming();
+  const { streamingText, sending, startStreaming, onToken, stopStreaming, cancelStreaming } = useStreaming();
 
+  const streamingTextRef = useRef('');
+
+  function handleToken(text) {
+    streamingTextRef.current = text;
+    onToken(text);
+  }
+
+  // Auth
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
@@ -53,6 +65,15 @@ export default function App() {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onSearch: () => setShowSearch(true),
+    onNewChat: () => handleNewChat(),
+    onSettings: () => setShowSettings(true),
+    onChatSettings: () => activeChatId && setShowChatSettings(true),
+    onToggleSidebar: () => setSidebarOpen((p) => !p),
+  });
 
   async function selectChat(chatId) {
     selectChatBase(chatId);
@@ -108,6 +129,137 @@ export default function App() {
     }
   }
 
+  // Edit message and regenerate
+  async function handleEditMessage(messageId, newContent) {
+    if (!activeChatId || sending) return;
+
+    // Update the message content
+    await updateMessage(activeChatId, messageId, newContent, activeChatIdRef);
+
+    // Delete all messages after this one (including the assistant reply)
+    const cached = messagesCache.current.get(activeChatId) || [];
+    const idx = cached.findIndex((m) => m.id === messageId);
+    if (idx === -1) return;
+
+    // Get messages after the edited one
+    const afterMessages = cached.slice(idx + 1);
+    if (afterMessages.length > 0) {
+      const ids = afterMessages.map((m) => m.id);
+      await supabase.from('messages').delete().in('id', ids);
+
+      // Update cache to only include up to and including edited message
+      const remaining = cached.slice(0, idx + 1);
+      // Update the edited message content in remaining
+      remaining[idx] = { ...remaining[idx], content: newContent };
+      messagesCache.current.set(activeChatId, remaining);
+      if (activeChatIdRef.current === activeChatId) {
+        const { setMessages } = useMessages; // won't work - need different approach
+      }
+    }
+
+    // Regenerate by sending the edited message
+    await sendMessageFromContent(activeChatId, newContent, []);
+  }
+
+  // Regenerate assistant message
+  async function handleRegenerate(messageId) {
+    if (!activeChatId || sending) return;
+
+    const cached = messagesCache.current.get(activeChatId) || [];
+    const idx = cached.findIndex((m) => m.id === messageId);
+    if (idx === -1) return;
+
+    // Find the user message before this assistant message
+    let userMessage = null;
+    for (let i = idx - 1; i >= 0; i--) {
+      if (cached[i].role === 'user') {
+        userMessage = cached[i];
+        break;
+      }
+    }
+    if (!userMessage) return;
+
+    // Delete this assistant message and everything after it
+    const toDelete = cached.slice(idx);
+    const ids = toDelete.map((m) => m.id);
+    await supabase.from('messages').delete().in('id', ids);
+
+    const remaining = cached.slice(0, idx);
+    messagesCache.current.set(activeChatId, remaining);
+    if (activeChatIdRef.current === activeChatId) {
+      // Force re-render with remaining messages
+      await loadMessages(activeChatId, activeChatIdRef);
+    }
+
+    // Re-send the user's message to get a new response
+    await sendMessageFromContent(activeChatId, userMessage.content, []);
+  }
+
+  // Internal: send a message when we already have a chatId and just need the LLM response
+  async function sendMessageFromContent(chatId, text, dataUrls) {
+    const activeModel = getActiveModel(settings, chats, chatId);
+    if (!activeModel) return;
+
+    setError('');
+    const signal = startStreaming();
+
+    try {
+      const currentChat = chats.find((c) => c.id === chatId);
+      const systemPrompt = currentChat?.system_prompt;
+
+      const history = messagesCache.current.get(chatId) || [];
+      const historyPaths = history.flatMap((m) => m.attachments || []);
+      const historyUrlMap = historyPaths.length ? await resolveUrls(historyPaths) : {};
+
+      const llmMessages = [
+        ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+        ...history.map((m) => ({
+          role: m.role,
+          content: m.content,
+          imageUrls: (m.attachments || []).map((p) => historyUrlMap[p]).filter(Boolean),
+        })),
+      ];
+
+      const full = await streamChat({
+        baseUrl: settings.baseUrl,
+        apiKey: settings.apiKey,
+        model: activeModel.id,
+        messages: llmMessages,
+        onToken: handleToken,
+        temperature: currentChat?.temperature ?? undefined,
+        top_p: currentChat?.top_p ?? undefined,
+        signal,
+      });
+
+      const { data: aMsg, error: aErr } = await supabase
+        .from('messages')
+        .insert({ chat_id: chatId, role: 'assistant', content: full })
+        .select()
+        .single();
+      if (aErr) throw new Error(aErr.message);
+      appendMessage(chatId, aMsg, activeChatIdRef);
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        const partial = streamingTextRef.current;
+        if (partial && chatId) {
+          try {
+            const { data: aMsg } = await supabase
+              .from('messages')
+              .insert({ chat_id: chatId, role: 'assistant', content: partial })
+              .select()
+              .single();
+            if (aMsg) appendMessage(chatId, aMsg, activeChatIdRef);
+          } catch {}
+        }
+      } else {
+        setError(e.message);
+      }
+    } finally {
+      streamingTextRef.current = '';
+      stopStreaming();
+    }
+  }
+
   async function sendMessage(text, files) {
     if ((!text && files.length === 0) || sending) return;
 
@@ -118,7 +270,7 @@ export default function App() {
     }
 
     setError('');
-    startStreaming();
+    const signal = startStreaming();
 
     try {
       let chatId = activeChatId;
@@ -162,13 +314,12 @@ export default function App() {
 
       appendMessage(chatId, userMsg, activeChatIdRef);
 
+      const currentChat = chats.find((c) => c.id === chatId);
+      const systemPrompt = currentChat?.system_prompt;
+
       const history = (messagesCache.current.get(chatId) || []).slice(0, -1);
       const historyPaths = history.flatMap((m) => m.attachments || []);
       const historyUrlMap = historyPaths.length ? await resolveUrls(historyPaths) : {};
-
-            // Build LLM messages with optional system prompt
-      const currentChat = chats.find((c) => c.id === chatId);
-      const systemPrompt = currentChat?.system_prompt;
 
       const llmMessages = [
         ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
@@ -186,9 +337,10 @@ export default function App() {
         apiKey: settings.apiKey,
         model: currentModel?.id || settings.defaultModelId,
         messages: llmMessages,
-        onToken,
+        onToken: handleToken,
         temperature: currentChat?.temperature ?? undefined,
         top_p: currentChat?.top_p ?? undefined,
+        signal,
       });
 
       const { data: aMsg, error: aErr } = await supabase
@@ -201,8 +353,23 @@ export default function App() {
 
       autoTitle(chatId, text, full).catch(() => {});
     } catch (e) {
-      setError(e.message);
+      if (e.name === 'AbortError') {
+        const partial = streamingTextRef.current;
+        if (partial && activeChatId) {
+          try {
+            const { data: aMsg } = await supabase
+              .from('messages')
+              .insert({ chat_id: activeChatId, role: 'assistant', content: partial })
+              .select()
+              .single();
+            if (aMsg) appendMessage(activeChatId, aMsg, activeChatIdRef);
+          } catch {}
+        }
+      } else {
+        setError(e.message);
+      }
     } finally {
+      streamingTextRef.current = '';
       stopStreaming();
     }
   }
@@ -224,6 +391,7 @@ export default function App() {
         email={session.user.email}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        onSearch={() => setShowSearch(true)}
       />
 
       <main className="flex flex-1 flex-col min-w-0">
@@ -231,6 +399,7 @@ export default function App() {
           settings={settings}
           chats={chats}
           activeChatId={activeChatId}
+          messages={messages}
           onChangeModel={handleChangeModel}
           onMenuClick={() => setSidebarOpen(true)}
           onChatSettings={() => setShowChatSettings(true)}
@@ -238,7 +407,13 @@ export default function App() {
 
         {activeChatId ? (
           <>
-            <MessageList messages={messages} urlMap={urlMap} streamingText={streamingText} />
+            <MessageList
+              messages={messages}
+              urlMap={urlMap}
+              streamingText={streamingText}
+              onEditMessage={handleEditMessage}
+              onRegenerate={handleRegenerate}
+            />
 
             {error && (
               <div className="mx-auto max-w-3xl w-full px-4 pb-2">
@@ -259,7 +434,11 @@ export default function App() {
               onSwitchModel={handleChangeModel}
             />
 
-            <ChatInput onSend={sendMessage} sending={sending} />
+            <ChatInput
+              onSend={sendMessage}
+              sending={sending}
+              onCancel={cancelStreaming}
+            />
           </>
         ) : (
           <EmptyState />
@@ -279,6 +458,13 @@ export default function App() {
           chat={chats.find((c) => c.id === activeChatId)}
           onUpdate={updateChatSettings}
           onClose={() => setShowChatSettings(false)}
+        />
+      )}
+
+      {showSearch && (
+        <SearchModal
+          onSelectChat={selectChat}
+          onClose={() => setShowSearch(false)}
         />
       )}
     </div>

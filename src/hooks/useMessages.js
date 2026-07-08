@@ -79,6 +79,42 @@ export function useMessages() {
     messagesCache.current.delete(chatId);
   }
 
+   async function deleteMessagesAfter(chatId, messageId, activeChatIdRef) {
+    const cached = messagesCache.current.get(chatId) || [];
+    const idx = cached.findIndex((m) => m.id === messageId);
+    if (idx === -1) return [];
+
+    const toDelete = cached.slice(idx);
+    const remaining = cached.slice(0, idx);
+
+    // Delete from DB
+    const ids = toDelete.map((m) => m.id);
+    if (ids.length > 0) {
+      await supabase.from('messages').delete().in('id', ids);
+    }
+
+    // Update cache
+    messagesCache.current.set(chatId, remaining);
+    if (activeChatIdRef.current === chatId) setMessages(remaining);
+
+    return toDelete;
+  }
+
+   async function updateMessage(chatId, messageId, newContent, activeChatIdRef) {
+    // Update DB
+    await supabase.from('messages').update({ content: newContent }).eq('id', messageId);
+
+    // Update cache
+    const cached = messagesCache.current.get(chatId) || [];
+    const updated = cached.map((m) =>
+      m.id === messageId ? { ...m, content: newContent } : m
+    );
+    messagesCache.current.set(chatId, updated);
+    if (activeChatIdRef.current === chatId) setMessages(updated);
+  }
+
+  
+
   return {
     messages,
     setMessages,
@@ -92,5 +128,7 @@ export function useMessages() {
     initChatMessages,
     clearMessages,
     removeChatFromCache,
+    deleteMessagesAfter,
+    updateMessage,
   };
 }

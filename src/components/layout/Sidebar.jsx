@@ -1,5 +1,6 @@
 import { Plus, Settings as SettingsIcon, LogOut, X } from 'lucide-react';
 import ChatListItem from '../chat/ChatListItem';
+import { Plus, Settings as SettingsIcon, LogOut, X, Search } from 'lucide-react';
 
 export default function Sidebar({
   chats,
@@ -13,6 +14,7 @@ export default function Sidebar({
   email,
   isOpen,
   onClose,
+  onSearch,
 }) {
   return (
     <>
@@ -41,13 +43,21 @@ export default function Sidebar({
           </span>
           <div className="flex items-center gap-1">
             <button
+              onClick={onSearch}
+              className="p-2 rounded-xl transition-colors"
+              style={{ color: 'var(--color-text-muted)' }}
+              title="Search (⌘K)"
+            >
+              <Search size={18} />
+            </button>
+            <button
               onClick={() => {
                 onNewChat();
                 onClose();
               }}
               className="p-2 rounded-xl transition-colors"
               style={{ color: 'var(--color-text-muted)' }}
-              title="New chat"
+              title="New chat (⌘N)"
             >
               <Plus size={18} />
             </button>

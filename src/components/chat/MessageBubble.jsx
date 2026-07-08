@@ -1,11 +1,13 @@
 import ReactMarkdown from 'react-markdown';
-import { Loader2, User, Bot, Copy, Check } from 'lucide-react';
+import { Loader2, User, Bot, Copy, Check, Pencil, RefreshCw, X } from 'lucide-react';
 import { useState } from 'react';
 import CodeBlock from './CodeBlock';
 
-export default function MessageBubble({ message, urlMap }) {
+export default function MessageBubble({ message, urlMap, onEdit, onRegenerate }) {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState(message.content);
 
   async function copyMessage() {
     try {
@@ -13,6 +15,14 @@ export default function MessageBubble({ message, urlMap }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {}
+  }
+
+  function handleEditSubmit() {
+    const trimmed = editDraft.trim();
+    if (trimmed && trimmed !== message.content) {
+      onEdit(message.id, trimmed);
+    }
+    setEditing(false);
   }
 
   return (
@@ -64,7 +74,52 @@ export default function MessageBubble({ message, urlMap }) {
           )}
 
           {/* Content */}
-          {isUser ? (
+          {editing ? (
+            <div className="space-y-2">
+              <textarea
+                autoFocus
+                value={editDraft}
+                onChange={(e) => setEditDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleEditSubmit();
+                  }
+                  if (e.key === 'Escape') {
+                    setEditing(false);
+                    setEditDraft(message.content);
+                  }
+                }}
+                className="w-full rounded-xl px-3 py-2 text-sm outline-none resize-y"
+                style={{
+                  background: 'var(--color-surface)',
+                  color: 'var(--color-text)',
+                  border: '1px solid var(--color-accent)',
+                  minHeight: '3rem',
+                }}
+                rows={3}
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => {
+                    setEditing(false);
+                    setEditDraft(message.content);
+                  }}
+                  className="px-3 py-1 text-xs rounded-lg"
+                  style={{ color: 'var(--color-text-faint)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleEditSubmit}
+                  className="px-3 py-1 text-xs rounded-lg font-medium"
+                  style={{ background: 'var(--color-accent)', color: 'white' }}
+                >
+                  Save & Regenerate
+                </button>
+              </div>
+            </div>
+          ) : isUser ? (
             <div className="whitespace-pre-wrap">{message.content}</div>
           ) : (
             <div className="prose prose-sm prose-chat max-w-none">
@@ -79,7 +134,6 @@ export default function MessageBubble({ message, urlMap }) {
                         </CodeBlock>
                       );
                     }
-                    // Inline code
                     return (
                       <code
                         className={className}
@@ -104,9 +158,30 @@ export default function MessageBubble({ message, urlMap }) {
           )}
         </div>
 
-                {/* Copy button for assistant messages */}
-        {!isUser && (
-          <div className="mt-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+        {/* Action buttons */}
+        {!editing && (
+          <div className="mt-1 flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+            {isUser && onEdit && (
+              <button
+                onClick={() => {
+                  setEditDraft(message.content);
+                  setEditing(true);
+                }}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-colors"
+                style={{ color: 'var(--color-text-faint)' }}
+              >
+                <Pencil size={12} /> Edit
+              </button>
+            )}
+            {!isUser && onRegenerate && (
+              <button
+                onClick={() => onRegenerate(message.id)}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-colors"
+                style={{ color: 'var(--color-text-faint)' }}
+              >
+                <RefreshCw size={12} /> Regenerate
+              </button>
+            )}
             <button
               onClick={copyMessage}
               className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-colors"
@@ -114,11 +189,7 @@ export default function MessageBubble({ message, urlMap }) {
                 color: copied ? 'var(--color-success)' : 'var(--color-text-faint)',
               }}
             >
-              {copied ? (
-                <><Check size={12} /> Copied</>
-              ) : (
-                <><Copy size={12} /> Copy</>
-              )}
+              {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
             </button>
           </div>
         )}

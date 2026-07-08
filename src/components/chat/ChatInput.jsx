@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
-import { SendHorizonal, Paperclip, X, Loader2, ImagePlus } from 'lucide-react';
+import { SendHorizonal, Paperclip, X, Loader2, ImagePlus, Square } from 'lucide-react';
 
-export default function ChatInput({ onSend, sending, disabled }) {
+export default function ChatInput({ onSend, sending, disabled, onCancel }) {
   const [input, setInput] = useState('');
   const [files, setFiles] = useState([]);
   const fileInputRef = useRef(null);
@@ -94,22 +94,32 @@ export default function ChatInput({ onSend, sending, disabled }) {
             }}
           />
 
-          <button
-            onClick={handleSend}
-            disabled={sending || disabled}
-            className="shrink-0 p-2 rounded-xl transition-all disabled:opacity-30"
-            style={{
-              background: input.trim() || files.length > 0 ? 'var(--color-accent)' : 'transparent',
-              color: input.trim() || files.length > 0 ? 'white' : 'var(--color-text-faint)',
-            }}
-            title="Send"
-          >
-            {sending ? (
-              <Loader2 className="animate-spin" size={18} />
-            ) : (
+          {sending ? (
+            <button
+              onClick={onCancel}
+              className="shrink-0 p-2 rounded-xl transition-all active:scale-95"
+              style={{
+                background: 'var(--color-danger)',
+                color: 'white',
+              }}
+              title="Stop generating"
+            >
+              <Square size={18} fill="white" />
+            </button>
+          ) : (
+            <button
+              onClick={handleSend}
+              disabled={disabled}
+              className="shrink-0 p-2 rounded-xl transition-all disabled:opacity-30"
+              style={{
+                background: input.trim() || files.length > 0 ? 'var(--color-accent)' : 'transparent',
+                color: input.trim() || files.length > 0 ? 'white' : 'var(--color-text-faint)',
+              }}
+              title="Send"
+            >
               <SendHorizonal size={18} />
-            )}
-          </button>
+            </button>
+          )}
         </div>
       </div>
     </div>

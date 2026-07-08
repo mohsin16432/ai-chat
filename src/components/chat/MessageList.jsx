@@ -4,7 +4,7 @@ import { Loader2, Bot } from 'lucide-react';
 import MessageBubble from './MessageBubble';
 import CodeBlock from './CodeBlock';
 
-export default function MessageList({ messages, urlMap, streamingText }) {
+export default function MessageList({ messages, urlMap, streamingText, onEditMessage, onRegenerate }) {
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -15,7 +15,13 @@ export default function MessageList({ messages, urlMap, streamingText }) {
     <div className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-3xl space-y-6 p-4 pb-8">
         {messages.map((m) => (
-          <MessageBubble key={m.id} message={m} urlMap={urlMap} />
+          <MessageBubble
+            key={m.id}
+            message={m}
+            urlMap={urlMap}
+            onEdit={onEditMessage}
+            onRegenerate={onRegenerate}
+          />
         ))}
 
         {streamingText !== null && (
@@ -50,11 +56,7 @@ export default function MessageList({ messages, urlMap, streamingText }) {
                         code({ node, inline, className, children, ...props }) {
                           const match = /language-(\w+)/.exec(className || '');
                           if (!inline && match) {
-                            return (
-                              <CodeBlock language={match[1]}>
-                                {children}
-                              </CodeBlock>
-                            );
+                            return <CodeBlock language={match[1]}>{children}</CodeBlock>;
                           }
                           return (
                             <code

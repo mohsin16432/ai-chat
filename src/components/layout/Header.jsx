@@ -1,7 +1,8 @@
 import { Menu, SlidersHorizontal } from 'lucide-react';
 import ModelPicker from '../chat/ModelPicker';
+import ExportButton from '../chat/ExportButton';
 
-export default function Header({ settings, chats, activeChatId, onChangeModel, onMenuClick, onChatSettings }) {
+export default function Header({ settings, chats, activeChatId, messages, onChangeModel, onMenuClick, onChatSettings }) {
   const activeChat = chats.find((c) => c.id === activeChatId);
 
   return (
@@ -28,9 +29,10 @@ export default function Header({ settings, chats, activeChatId, onChangeModel, o
         </h2>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         {activeChatId && (
           <>
+            <ExportButton chat={activeChat} messages={messages} />
             <button
               onClick={onChatSettings}
               className="p-1.5 rounded-lg transition-colors"
