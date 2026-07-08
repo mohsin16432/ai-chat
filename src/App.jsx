@@ -201,7 +201,7 @@ export default function App() {
   if (!session) return <AuthScreen />;
 
   return (
-    <div className="flex h-dvh" style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}>
+    <div className="flex h-dvh pt-safe" style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}>
       <Sidebar
         chats={chats}
         activeChatId={activeChatId}
