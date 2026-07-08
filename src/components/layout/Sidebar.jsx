@@ -1,4 +1,3 @@
-import { Plus, Settings as SettingsIcon, LogOut, X } from 'lucide-react';
 import ChatListItem from '../chat/ChatListItem';
 import { Plus, Settings as SettingsIcon, LogOut, X, Search } from 'lucide-react';
 
