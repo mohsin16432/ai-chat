@@ -1,21 +1,100 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-/* keep inline-code styling from bleeding into code blocks */
+:root {
+  --color-surface: #171717;
+  --color-surface-alt: #1e1e1e;
+  --color-surface-hover: #262626;
+  --color-surface-active: #2a2a2a;
+  --color-border: #2e2e2e;
+  --color-border-light: #3a3a3a;
+  --color-text: #e5e5e5;
+  --color-text-muted: #a3a3a3;
+  --color-text-faint: #737373;
+  --color-accent: #6366f1;
+  --color-accent-hover: #818cf8;
+  --color-accent-muted: #6366f120;
+  --color-user-bubble: #6366f1;
+  --color-user-bubble-text: #ffffff;
+  --color-danger: #ef4444;
+  --color-danger-muted: #ef444420;
+  --color-warning: #f59e0b;
+  --color-warning-muted: #f59e0b15;
+  --color-success: #22c55e;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  overscroll-behavior: none;
+  background: var(--color-surface);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-light);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-faint);
+}
+
+/* Code blocks */
 pre code {
   background: transparent;
   padding: 0;
   color: inherit;
 }
 
-/* Prevent pull-to-refresh on mobile */
-html, body {
-  overscroll-behavior: none;
+pre {
+  background: #0d0d0d !important;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem !important;
 }
 
-/* Safe area padding for notched phones */
+code:not(pre code) {
+  background: #0d0d0d;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.15em 0.35em;
+  font-size: 0.875em;
+}
+
+/* Safe area */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }
+}
+
+/* Prose overrides for dark theme */
+.prose-chat {
+  --tw-prose-body: var(--color-text);
+  --tw-prose-headings: #f5f5f5;
+  --tw-prose-lead: var(--color-text-muted);
+  --tw-prose-links: var(--color-accent-hover);
+  --tw-prose-bold: #f5f5f5;
+  --tw-prose-counters: var(--color-text-muted);
+  --tw-prose-bullets: var(--color-text-faint);
+  --tw-prose-hr: var(--color-border);
+  --tw-prose-quotes: var(--color-text-muted);
+  --tw-prose-quote-borders: var(--color-border-light);
+  --tw-prose-code: var(--color-accent-hover);
+  --tw-prose-pre-bg: #0d0d0d;
+  --tw-prose-th-borders: var(--color-border);
+  --tw-prose-td-borders: var(--color-border);
+}
+
+/* Textarea auto-height */
+textarea {
+  field-sizing: content;
 }
