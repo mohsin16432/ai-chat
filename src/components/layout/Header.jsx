@@ -1,7 +1,7 @@
-import { Menu } from 'lucide-react';
+import { Menu, SlidersHorizontal } from 'lucide-react';
 import ModelPicker from '../chat/ModelPicker';
 
-export default function Header({ settings, chats, activeChatId, onChangeModel, onMenuClick }) {
+export default function Header({ settings, chats, activeChatId, onChangeModel, onMenuClick, onChatSettings }) {
   const activeChat = chats.find((c) => c.id === activeChatId);
 
   return (
@@ -28,14 +28,26 @@ export default function Header({ settings, chats, activeChatId, onChangeModel, o
         </h2>
       </div>
 
-      {activeChatId && (
-        <ModelPicker
-          settings={settings}
-          chats={chats}
-          activeChatId={activeChatId}
-          onChangeModel={onChangeModel}
-        />
-      )}
+      <div className="flex items-center gap-2">
+        {activeChatId && (
+          <>
+            <button
+              onClick={onChatSettings}
+              className="p-1.5 rounded-lg transition-colors"
+              style={{ color: 'var(--color-text-faint)' }}
+              title="Chat settings"
+            >
+              <SlidersHorizontal size={16} />
+            </button>
+            <ModelPicker
+              settings={settings}
+              chats={chats}
+              activeChatId={activeChatId}
+              onChangeModel={onChangeModel}
+            />
+          </>
+        )}
+      </div>
     </div>
   );
 }

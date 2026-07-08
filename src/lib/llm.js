@@ -1,4 +1,4 @@
-export async function streamChat({ baseUrl, apiKey, model, messages, onToken, signal }) {
+export async function streamChat({ baseUrl, apiKey, model, messages, onToken, signal, temperature, top_p }) {
   const payload = {
     model,
     stream: true,
@@ -18,6 +18,14 @@ export async function streamChat({ baseUrl, apiKey, model, messages, onToken, si
       };
     }),
   };
+
+  // Only include if explicitly set (some APIs error on unexpected params)
+  if (temperature !== undefined && temperature !== null) {
+    payload.temperature = temperature;
+  }
+  if (top_p !== undefined && top_p !== null) {
+    payload.top_p = top_p;
+  }
 
   const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/chat/completions`, {
     method: 'POST',

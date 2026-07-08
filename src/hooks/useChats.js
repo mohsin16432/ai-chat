@@ -104,6 +104,21 @@ export function useChats(session) {
     setError('');
   }
 
+  async function updateChatSettings(chatId, settings) {
+    // Update locally
+    setChats((prev) =>
+      prev.map((c) => (c.id === chatId ? { ...c, ...settings } : c))
+    );
+
+    // Persist to Supabase
+    const { error: err } = await supabase
+      .from('chats')
+      .update(settings)
+      .eq('id', chatId);
+
+    if (err) setError(`Failed to save chat settings: ${err.message}`);
+  }
+
   return {
     chats,
     setChats,
@@ -117,5 +132,6 @@ export function useChats(session) {
     deleteChat,
     updateChatModel,
     selectChat,
+    updateChatSettings
   };
 }

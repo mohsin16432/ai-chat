@@ -16,11 +16,13 @@ import ChatInput from './components/chat/ChatInput';
 import EmptyState from './components/chat/EmptyState';
 import CapabilityWarning from './components/chat/CapabilityWarning';
 import SettingsModal from './components/settings/SettingsModal';
+import ChatSettings from './components/chat/ChatSettings';
 
 export default function App() {
   const [session, setSession] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showChatSettings, setShowChatSettings] = useState(false);  // <-- add this
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { settings, updateSettings } = useSettings();
@@ -31,6 +33,7 @@ export default function App() {
     error, setError,
     createChat, renameChat, deleteChat,
     updateChatModel, selectChat: selectChatBase,
+    updateChatSettings
   } = useChats(session);
 
   const {
@@ -163,7 +166,12 @@ export default function App() {
       const historyPaths = history.flatMap((m) => m.attachments || []);
       const historyUrlMap = historyPaths.length ? await resolveUrls(historyPaths) : {};
 
+            // Build LLM messages with optional system prompt
+      const currentChat = chats.find((c) => c.id === chatId);
+      const systemPrompt = currentChat?.system_prompt;
+
       const llmMessages = [
+        ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
         ...history.map((m) => ({
           role: m.role,
           content: m.content,
@@ -179,6 +187,8 @@ export default function App() {
         model: currentModel?.id || settings.defaultModelId,
         messages: llmMessages,
         onToken,
+        temperature: currentChat?.temperature ?? undefined,
+        top_p: currentChat?.top_p ?? undefined,
       });
 
       const { data: aMsg, error: aErr } = await supabase
@@ -223,6 +233,7 @@ export default function App() {
           activeChatId={activeChatId}
           onChangeModel={handleChangeModel}
           onMenuClick={() => setSidebarOpen(true)}
+          onChatSettings={() => setShowChatSettings(true)}
         />
 
         {activeChatId ? (
@@ -260,6 +271,14 @@ export default function App() {
           settings={settings}
           onSave={updateSettings}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {showChatSettings && activeChatId && (
+        <ChatSettings
+          chat={chats.find((c) => c.id === activeChatId)}
+          onUpdate={updateChatSettings}
+          onClose={() => setShowChatSettings(false)}
         />
       )}
     </div>
