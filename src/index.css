@@ -98,3 +98,10 @@ code:not(pre code) {
 textarea {
   field-sizing: content;
 }
+
+/* iOS standalone mode: status bar padding */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+}
