@@ -104,9 +104,9 @@ export default function MessageBubble({ message, urlMap }) {
           )}
         </div>
 
-        {/* Copy button for assistant messages */}
+                {/* Copy button for assistant messages */}
         {!isUser && (
-          <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="mt-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
             <button
               onClick={copyMessage}
               className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-colors"
