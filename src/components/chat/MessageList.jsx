@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Loader2, Bot } from 'lucide-react';
 import MessageBubble from './MessageBubble';
+import CodeBlock from './CodeBlock';
 
 export default function MessageList({ messages, urlMap, streamingText }) {
   const bottomRef = useRef(null);
@@ -44,7 +45,37 @@ export default function MessageList({ messages, urlMap, streamingText }) {
                   </div>
                 ) : (
                   <div className="prose prose-sm prose-chat max-w-none">
-                    <ReactMarkdown>{streamingText}</ReactMarkdown>
+                    <ReactMarkdown
+                      components={{
+                        code({ node, inline, className, children, ...props }) {
+                          const match = /language-(\w+)/.exec(className || '');
+                          if (!inline && match) {
+                            return (
+                              <CodeBlock language={match[1]}>
+                                {children}
+                              </CodeBlock>
+                            );
+                          }
+                          return (
+                            <code
+                              className={className}
+                              style={{
+                                background: '#0d0d0d',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: '4px',
+                                padding: '0.15em 0.35em',
+                                fontSize: '0.875em',
+                              }}
+                              {...props}
+                            >
+                              {children}
+                            </code>
+                          );
+                        },
+                      }}
+                    >
+                      {streamingText}
+                    </ReactMarkdown>
                   </div>
                 )}
               </div>

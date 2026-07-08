@@ -1,11 +1,22 @@
 import ReactMarkdown from 'react-markdown';
-import { Loader2, User, Bot } from 'lucide-react';
+import { Loader2, User, Bot, Copy, Check } from 'lucide-react';
+import { useState } from 'react';
+import CodeBlock from './CodeBlock';
 
 export default function MessageBubble({ message, urlMap }) {
   const isUser = message.role === 'user';
+  const [copied, setCopied] = useState(false);
+
+  async function copyMessage() {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  }
 
   return (
-    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
+    <div className={`group flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
       {/* Avatar */}
       <div
         className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center mt-1"
@@ -57,10 +68,60 @@ export default function MessageBubble({ message, urlMap }) {
             <div className="whitespace-pre-wrap">{message.content}</div>
           ) : (
             <div className="prose prose-sm prose-chat max-w-none">
-              <ReactMarkdown>{message.content}</ReactMarkdown>
+              <ReactMarkdown
+                components={{
+                  code({ node, inline, className, children, ...props }) {
+                    const match = /language-(\w+)/.exec(className || '');
+                    if (!inline && match) {
+                      return (
+                        <CodeBlock language={match[1]}>
+                          {children}
+                        </CodeBlock>
+                      );
+                    }
+                    // Inline code
+                    return (
+                      <code
+                        className={className}
+                        style={{
+                          background: '#0d0d0d',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: '4px',
+                          padding: '0.15em 0.35em',
+                          fontSize: '0.875em',
+                        }}
+                        {...props}
+                      >
+                        {children}
+                      </code>
+                    );
+                  },
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
             </div>
           )}
         </div>
+
+        {/* Copy button for assistant messages */}
+        {!isUser && (
+          <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={copyMessage}
+              className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-colors"
+              style={{
+                color: copied ? 'var(--color-success)' : 'var(--color-text-faint)',
+              }}
+            >
+              {copied ? (
+                <><Check size={12} /> Copied</>
+              ) : (
+                <><Copy size={12} /> Copy</>
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
