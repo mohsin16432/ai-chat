@@ -1,15 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
-import { SendHorizonal, Paperclip, X, ImagePlus, Square, Terminal } from 'lucide-react';
+import { SendHorizonal, Paperclip, X, ImagePlus, Square, Terminal, FileText, Loader2, Globe } from 'lucide-react';
 import { loadSkills } from '../../lib/skills';
+import { parseDocument } from '../../lib/documentParser';
 
 export default function ChatInput({ onSend, sending, disabled, onCancel }) {
   const [input, setInput] = useState('');
-  const [files, setFiles] = useState([]);
+  const [files, setFiles] = useState([]); // Will store { type: 'image'|'document', file: File, previewUrl?: string, parsedText?: string }
+  const [parsingFile, setParsingFile] = useState(false);
   const [skills, setSkills] = useState([]);
   const [filteredSkills, setFilteredSkills] = useState([]);
   const [showCommands, setShowCommands] = useState(false);
   const [selectedSkillIndex, setSelectedSkillIndex] = useState(0);
   const [activeSkill, setActiveSkill] = useState(null);
+  const [webSearchActive, setWebSearchActive] = useState(false); // Web Search state toggle
+
 
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
@@ -29,7 +33,6 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
     };
   }, []);
 
-  // Double-safe backup: refresh skills list when the user focuses the input field
   function handleInputFocus() {
     setSkills(loadSkills());
   }
@@ -51,14 +54,63 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
     }
   }, [input, skills]);
 
+  // Handle uploading and parsing files client-side
+  async function handleFileChange(e) {
+    const uploadedFiles = Array.from(e.target.files || []);
+    e.target.value = ''; // Reset file input path
+    if (uploadedFiles.length === 0) return;
+
+    setParsingFile(true);
+    const newFiles = [...files];
+
+    for (const file of uploadedFiles) {
+      const filename = file.name.toLowerCase();
+      const isImage = file.type.startsWith('image/');
+
+      if (isImage) {
+        newFiles.push({
+          type: 'image',
+          file: file,
+          name: file.name,
+          previewUrl: URL.createObjectURL(file)
+        });
+      } else {
+        // Document parser execution route
+        try {
+          const parsedText = await parseDocument(file);
+          newFiles.push({
+            type: 'document',
+            file: file,
+            name: file.name,
+            parsedText: parsedText
+          });
+        } catch (err) {
+          console.warn('Document extraction failed:', err);
+          alert(`Could not read document contents for ${file.name}: ${err.message || err}`);
+        }
+      }
+    }
+
+    setFiles(newFiles);
+    setParsingFile(false);
+  }
+
   function handleSend() {
     const text = input.trim();
-    if ((!text && files.length === 0) || sending) return;
+    if ((!text && files.length === 0) || sending || parsingFile) return;
     
-    onSend(text, files, activeSkill);
+    const images = files.filter(f => f.type === 'image').map(f => f.file);
+    const documents = files.filter(f => f.type === 'document').map(f => ({
+      name: f.name,
+      content: f.parsedText
+    }));
+
+    // Pass webSearchActive state parameter to App.jsx dispatch trigger
+    onSend(text, images, activeSkill, documents, webSearchActive);
     setInput('');
     setFiles([]);
     setActiveSkill(null);
+    setWebSearchActive(false); // Reset search state once sent
   }
 
   const selectSkill = (skill) => {
@@ -102,6 +154,14 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
     }
   };
 
+  const removeFile = (idxToRemove) => {
+    const targetFile = files[idxToRemove];
+    if (targetFile.previewUrl) {
+      URL.revokeObjectURL(targetFile.previewUrl); // Prevent browser memory leaks
+    }
+    setFiles(files.filter((_, idx) => idx !== idxToRemove));
+  };
+
   return (
     <div className="pb-safe relative">
       
@@ -143,25 +203,35 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
         </div>
       )}
 
-      {/* File previews */}
+      {/* Files Previews & Metadata Tray */}
       {files.length > 0 && (
         <div className="mx-auto max-w-3xl px-4 pb-2">
           <div className="flex gap-2 flex-wrap">
             {files.map((f, i) => (
               <div
                 key={i}
-                className="flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs"
+                className="flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs border"
                 style={{
                   background: 'var(--color-surface-alt)',
                   color: 'var(--color-text-muted)',
-                  border: '1px solid var(--color-border)',
+                  borderColor: 'var(--color-border)',
                 }}
               >
-                <ImagePlus size={12} style={{ color: 'var(--color-accent)' }} />
-                <span className="truncate max-w-[120px]">{f.name}</span>
+                {f.type === 'image' ? (
+                  <>
+                    <ImagePlus size={12} style={{ color: 'var(--color-accent)' }} />
+                    <span className="truncate max-w-[120px]">{f.name}</span>
+                  </>
+                ) : (
+                  <>
+                    <FileText size={12} style={{ color: 'var(--color-success)' }} />
+                    <span className="truncate max-w-[150px] font-medium">{f.name}</span>
+                    <span className="text-[9px] px-1 py-0.2 rounded" style={{ background: 'rgba(34,197,94,0.15)', color: 'var(--color-success)' }}>READY</span>
+                  </>
+                )}
                 <button
-                  onClick={() => setFiles(files.filter((_, j) => j !== i))}
-                  className="p-0.5 rounded transition-colors"
+                  onClick={() => removeFile(i)}
+                  className="p-0.5 rounded transition-colors hover:bg-[var(--color-surface-hover)]"
                   style={{ color: 'var(--color-text-faint)' }}
                 >
                   <X size={12} />
@@ -169,6 +239,14 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Parsing progress indicator */}
+      {parsingFile && (
+        <div className="mx-auto max-w-3xl px-4 pb-2 flex items-center gap-2 text-xs" style={{ color: 'var(--color-accent)' }}>
+          <Loader2 className="animate-spin" size={12} />
+          <span>Analyzing document contents client-side...</span>
         </div>
       )}
 
@@ -205,25 +283,39 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
             border: '1px solid var(--color-border)',
           }}
         >
+          {/* Expanded file selector filter targets */}
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,.pdf,.csv,.json,.txt"
             multiple
             hidden
-            onChange={(e) => {
-              setFiles([...files, ...Array.from(e.target.files)]);
-              e.target.value = '';
-            }}
+            onChange={handleFileChange}
           />
 
-          <button
+           <button
             onClick={() => fileInputRef.current?.click()}
             className="shrink-0 p-2 rounded-xl transition-colors"
             style={{ color: 'var(--color-text-faint)' }}
-            title="Attach image"
+            title="Attach file (Image, PDF, CSV, JSON, TXT)"
+            disabled={parsingFile}
           >
             <Paperclip size={18} />
+          </button>
+
+          {/* Web Search Globe Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setWebSearchActive(!webSearchActive)}
+            className="shrink-0 p-2 rounded-xl transition-all active:scale-95"
+            style={{ 
+              color: webSearchActive ? 'var(--color-accent-hover)' : 'var(--color-text-faint)',
+              background: webSearchActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+              border: webSearchActive ? '1px solid var(--color-accent)' : '1px solid transparent'
+            }}
+            title="Toggle Web Search"
+          >
+            <Globe size={18} className={webSearchActive ? 'animate-pulse' : ''} />
           </button>
 
           <textarea
@@ -233,8 +325,8 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             onFocus={handleInputFocus}
-            placeholder="Message (type / for commands)..."
-            className="flex-1 resize-none bg-transparent py-2 text-sm outline-none"
+            placeholder="Message (type / for commands, attach file)..."
+            className="flex-1 resize-none bg-transparent py-2 text-sm outline-none animate-fade-in"
             style={{
               color: 'var(--color-text)',
               maxHeight: '10rem',
@@ -257,7 +349,7 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
           ) : (
             <button
               onClick={handleSend}
-              disabled={disabled}
+              disabled={disabled || parsingFile}
               className="shrink-0 p-2 rounded-xl transition-all disabled:opacity-30"
               style={{
                 background: input.trim() || files.length > 0 ? 'var(--color-accent)' : 'transparent',

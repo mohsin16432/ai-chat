@@ -1,7 +1,6 @@
 import { useState, lazy, Suspense } from 'react';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, Play } from 'lucide-react';
 
-// Dynamically import the syntax highlighter and its style index (resolved by Rolldown)
 const LazyHighlighter = lazy(() => 
   Promise.all([
     import('react-syntax-highlighter'),
@@ -10,7 +9,7 @@ const LazyHighlighter = lazy(() =>
     default: ({ language, showLineNumbers, code, customStyle, lineNumberStyle }) => (
       <highlighterModule.Prism
         language={language}
-        style={styleIndex.oneDark} // Destructure oneDark directly from working styles index
+        style={styleIndex.oneDark}
         showLineNumbers={showLineNumbers}
         customStyle={customStyle}
         lineNumberStyle={lineNumberStyle}
@@ -22,7 +21,6 @@ const LazyHighlighter = lazy(() =>
   }))
 );
 
-// Fallback skeleton that mirrors the dark theme styling to prevent layout shifts (CLS)
 function CodeFallback({ code }) {
   return (
     <pre 
@@ -45,6 +43,24 @@ export default function CodeBlock({ language, children }) {
 
   const code = String(children).replace(/\n$/, '');
 
+  // 1. Broaden compatible language identifiers
+  const cleanLang = (language || '').toLowerCase().trim();
+  const isArtifactCompatible = [
+    'html', 'htm', 'xhtml', 'svg', 'xml', 'css', 
+    'javascript', 'js', 'jsx', 'typescript', 'ts', 'tsx'
+  ].includes(cleanLang);
+
+  // --- VISUAL CONSOLE DIAGNOSTIC ---
+  console.groupCollapsed(
+    `%c💻 CodeBlock Diagnostic [${cleanLang || 'plaintext'}]`, 
+    'color: #06b6d4; font-weight: bold; font-size: 10px;'
+  );
+  console.log('%cRaw Language Prop Received:', 'color: #a3a3a3;', language);
+  console.log('%cIs Artifact Compatible?:', isArtifactCompatible ? 'color: #10b981; font-weight: bold;' : 'color: #ef4444;', isArtifactCompatible);
+  console.log('%cCode Snippet (First 60 chars):', 'color: #a3a3a3;', code.substring(0, 60) + '...');
+  console.groupEnd();
+  // ----------------------------------
+
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(code);
@@ -64,14 +80,25 @@ export default function CodeBlock({ language, children }) {
     }
   }
 
+  // Fire global Custom Event to trigger the Artifact panel
+  function handleOpenArtifact() {
+    console.log('%c🚀 Dispatching view-artifact event for:', 'color: #6366f1; font-weight: bold;', cleanLang);
+    window.dispatchEvent(new CustomEvent('view-artifact', {
+      detail: {
+        language: cleanLang === 'xml' ? 'svg' : cleanLang,
+        code: code
+      }
+    }));
+  }
+
   return (
     <div
       className="relative rounded-xl overflow-hidden my-3"
       style={{ border: '1px solid var(--color-border)' }}
     >
-      {/* Header bar — always visible on mobile */}
+      {/* Header bar — always visible */}
       <div
-        className="flex items-center justify-between px-4 py-1.5"
+        className="flex items-center justify-between px-4 py-2"
         style={{
           background: 'var(--color-surface-hover)',
           borderBottom: '1px solid var(--color-border)',
@@ -83,21 +110,40 @@ export default function CodeBlock({ language, children }) {
         >
           {language || 'code'}
         </span>
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg transition-colors active:scale-95"
-          style={{
-            color: copied ? 'var(--color-success)' : 'var(--color-text-faint)',
-            background: copied ? 'var(--color-success)15' : 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-          }}
-        >
-          {copied ? (
-            <><Check size={12} /> Copied</>
-          ) : (
-            <><Copy size={12} /> Copy</>
+
+        <div className="flex items-center gap-2">
+          {/* View Artifact Trigger Button */}
+          {isArtifactCompatible && (
+            <button
+              onClick={handleOpenArtifact}
+              className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg transition-all border font-semibold active:scale-95"
+              style={{ 
+                background: 'rgba(99, 102, 241, 0.15)',
+                color: 'var(--color-accent-hover)',
+                borderColor: 'var(--color-accent)'
+              }}
+            >
+              <Play size={10} className="fill-[var(--color-accent-hover)] text-[var(--color-accent-hover)]" /> 
+              <span>View Artifact</span>
+            </button>
           )}
-        </button>
+
+          <button
+            onClick={handleCopy}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg transition-colors active:scale-95"
+            style={{
+              color: copied ? 'var(--color-success)' : 'var(--color-text-faint)',
+              background: copied ? 'var(--color-success)15' : 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+            }}
+          >
+            {copied ? (
+              <><Check size={12} /> Copied</>
+            ) : (
+              <><Copy size={12} /> Copy</>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Code content container with Suspense Fallback */}

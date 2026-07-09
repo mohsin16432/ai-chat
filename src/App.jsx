@@ -8,7 +8,9 @@ import { useChats } from './hooks/useChats';
 import { useMessages } from './hooks/useMessages';
 import { useStreaming } from './hooks/useStreaming';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { loadSkills } from './lib/skills';
 
+// Core layout & view components
 import AuthScreen from './components/auth/AuthScreen';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
@@ -19,6 +21,10 @@ import CapabilityWarning from './components/chat/CapabilityWarning';
 import SettingsModal from './components/settings/SettingsModal';
 import ChatSettings from './components/chat/ChatSettings';
 import SearchModal from './components/chat/SearchModal';
+import ArtifactsPanel from './components/chat/ArtifactsPanel';
+
+// Lucide Icons (Correctly Imported to prevent crashes)
+import { Loader2 } from 'lucide-react';
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -27,6 +33,10 @@ export default function App() {
   const [showChatSettings, setShowChatSettings] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // Phase 3 & Phase 5 States
+  const [activeArtifact, setActiveArtifact] = useState(null);
+  const [searchingWeb, setSearchingWeb] = useState(false);
 
   const { settings, updateSettings } = useSettings();
 
@@ -56,7 +66,7 @@ export default function App() {
     onToken(text);
   }
 
-  // Auth
+  // Auth Subscription
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
@@ -74,6 +84,18 @@ export default function App() {
     onChatSettings: () => activeChatId && setShowChatSettings(true),
     onToggleSidebar: () => setSidebarOpen((p) => !p),
   });
+
+  // Subscribe to global View Artifact trigger events
+  useEffect(() => {
+    const handleOpenArtifact = (e) => {
+      setActiveArtifact(e.detail);
+    };
+    
+    window.addEventListener('view-artifact', handleOpenArtifact);
+    return () => {
+      window.removeEventListener('view-artifact', handleOpenArtifact);
+    };
+  }, []);
 
   async function selectChat(chatId) {
     selectChatBase(chatId);
@@ -133,31 +155,22 @@ export default function App() {
   async function handleEditMessage(messageId, newContent) {
     if (!activeChatId || sending) return;
 
-    // Update the message content
     await updateMessage(activeChatId, messageId, newContent, activeChatIdRef);
 
-    // Delete all messages after this one (including the assistant reply)
     const cached = messagesCache.current.get(activeChatId) || [];
     const idx = cached.findIndex((m) => m.id === messageId);
     if (idx === -1) return;
 
-    // Get messages after the edited one
     const afterMessages = cached.slice(idx + 1);
     if (afterMessages.length > 0) {
       const ids = afterMessages.map((m) => m.id);
       await supabase.from('messages').delete().in('id', ids);
 
-      // Update cache to only include up to and including edited message
       const remaining = cached.slice(0, idx + 1);
-      // Update the edited message content in remaining
       remaining[idx] = { ...remaining[idx], content: newContent };
       messagesCache.current.set(activeChatId, remaining);
-      if (activeChatIdRef.current === activeChatId) {
-        const { setMessages } = useMessages; // won't work - need different approach
-      }
     }
 
-    // Regenerate by sending the edited message
     await sendMessageFromContent(activeChatId, newContent, []);
   }
 
@@ -169,7 +182,6 @@ export default function App() {
     const idx = cached.findIndex((m) => m.id === messageId);
     if (idx === -1) return;
 
-    // Find the user message before this assistant message
     let userMessage = null;
     for (let i = idx - 1; i >= 0; i--) {
       if (cached[i].role === 'user') {
@@ -179,7 +191,6 @@ export default function App() {
     }
     if (!userMessage) return;
 
-    // Delete this assistant message and everything after it
     const toDelete = cached.slice(idx);
     const ids = toDelete.map((m) => m.id);
     await supabase.from('messages').delete().in('id', ids);
@@ -187,11 +198,9 @@ export default function App() {
     const remaining = cached.slice(0, idx);
     messagesCache.current.set(activeChatId, remaining);
     if (activeChatIdRef.current === activeChatId) {
-      // Force re-render with remaining messages
       await loadMessages(activeChatId, activeChatIdRef);
     }
 
-    // Re-send the user's message to get a new response
     await sendMessageFromContent(activeChatId, userMessage.content, []);
   }
 
@@ -204,25 +213,23 @@ export default function App() {
     const signal = startStreaming();
 
     try {
-            const currentChat = chats.find((c) => c.id === chatId);
+      const currentChat = chats.find((c) => c.id === chatId);
       let systemPrompt = currentChat?.system_prompt;
 
-      // Detect if a skill execution exists in the message history to re-apply it
       const history = messagesCache.current.get(chatId) || [];
       const lastMessage = history[history.length - 1];
       let finalUserPrompt = lastMessage?.content || text;
 
+      // Extract and re-apply commands during message regeneration loops
       if (lastMessage && lastMessage.role === 'user' && lastMessage.content.startsWith('[Skill Executed:')) {
         const match = lastMessage.content.match(/^\[Skill Executed:\s*\/([^\]]+)\]/);
         if (match) {
           const commandTrigger = match[1].trim();
           const activeSkill = loadSkills().find(s => s.command === commandTrigger);
           if (activeSkill) {
-            // Re-apply system prompt context
             const skillDirective = `[COMMAND DIRECTIVE: /${activeSkill.command} - ${activeSkill.name}]\n${activeSkill.systemPrompt}`;
             systemPrompt = systemPrompt ? `${systemPrompt}\n\n${skillDirective}` : skillDirective;
 
-            // Re-apply active user block context
             const rawUserText = lastMessage.content.replace(/^\[Skill Executed:\s*\/[^\]]+\]\n?/, '');
             finalUserPrompt = `[SYSTEM INSTRUCTION: You must adopt the persona/rules of /${activeSkill.command} for your reply. Instructions: ${activeSkill.systemPrompt}]\n\nUser Message: ${rawUserText}`;
           }
@@ -232,7 +239,6 @@ export default function App() {
       const historyPaths = history.flatMap((m) => m.attachments || []);
       const historyUrlMap = historyPaths.length ? await resolveUrls(historyPaths) : {};
 
-      // Slice out the last message so we can send it as the fresh prompt below
       const messagesToConvert = history.slice(0, -1);
 
       const llmMessages = [
@@ -245,18 +251,15 @@ export default function App() {
         { role: 'user', content: finalUserPrompt, imageUrls: (lastMessage?.attachments || []).map((p) => historyUrlMap[p]).filter(Boolean) },
       ];
 
-      const currentModel = getActiveModel(settings, chats, chatId);
-
-      // --- VISUAL CONSOLE DIAGNOSTICS ---
+      // Visual Console Diagnostics
       console.groupCollapsed(
         `%c🤖 LLM Regeneration Request Payload`, 
         'color: #ec4899; font-weight: bold; font-size: 11px;'
       );
       console.log('%cAPI Endpoint:', 'color: #a3a3a3;', settings.baseUrl);
-      console.log('%cModel Assigned:', 'color: #a3a3a3;', currentModel?.id || settings.defaultModelId);
+      console.log('%cModel Assigned:', 'color: #a3a3a3;', activeModel.id);
       console.log('%cFormatted Message Payload Array:', 'color: #a3a3a3;', llmMessages);
       console.groupEnd();
-      // ----------------------------------
 
       const full = await streamChat({
         baseUrl: settings.baseUrl,
@@ -298,8 +301,9 @@ export default function App() {
     }
   }
 
-      async function sendMessage(text, files, activeSkill = null) {
-    if ((!text && files.length === 0) || sending) return;
+  // Main message dispatch pipeline
+  async function sendMessage(text, files, activeSkill = null, documents = [], webSearchActive = false) {
+    if ((!text && files.length === 0 && documents.length === 0) || sending) return;
 
     const activeModel = getActiveModel(settings, chats, activeChatId);
     if (!settings.baseUrl || !settings.apiKey || !activeModel) {
@@ -317,6 +321,36 @@ export default function App() {
         if (!chat) return;
         chatId = chat.id;
         initChatMessages(chatId);
+      }
+
+      // Web Search Execution Handler
+      let searchContextText = '';
+      if (webSearchActive) {
+        setSearchingWeb(true);
+        try {
+          const { performWebSearch } = await import('./lib/search');
+          const results = await performWebSearch(
+            text, 
+            settings.searchProvider || 'duckduckgo', 
+            settings.searchApiKey
+          );
+          
+          if (results && results.length > 0) {
+            searchContextText = `[REAL-TIME WEB SEARCH RESULTS FOR: "${text}"]\n` +
+              `===================================\n` +
+              results.map((r, idx) => 
+                `Result [${idx + 1}]: ${r.title}\n` +
+                `URL: ${r.url}\n` +
+                `Snippet: ${r.snippet}\n`
+              ).join('\n') +
+              `===================================\n` +
+              `Instructions: Synthesize the web search results above to provide an accurate, up-to-date reply. Cite URLs using [index] markers.\n\n`;
+          }
+        } catch (searchErr) {
+          console.warn('Web search failed:', searchErr);
+        } finally {
+          setSearchingWeb(false);
+        }
       }
 
       const uid = session.user.id;
@@ -343,14 +377,22 @@ export default function App() {
         });
       }
 
-            // Record command skills cleanly in the database
-      const recordedContent = activeSkill 
-        ? `[Skill Executed: /${activeSkill.command}]\n${text}` 
-        : text;
+      // Structuring user records
+      let dbContent = text;
+      if (activeSkill) {
+        dbContent = `[Skill Executed: /${activeSkill.command}]\n${dbContent}`;
+      }
+      if (documents.length > 0) {
+        const docNames = documents.map(doc => `📎 ${doc.name}`).join(', ');
+        dbContent = `[Attached Files: ${docNames}]\n${dbContent}`;
+      }
+      if (webSearchActive && searchContextText) {
+        dbContent = `🔍 [Web Search Triggered]\n${dbContent}`;
+      }
 
       const { data: userMsg, error: insErr } = await supabase
         .from('messages')
-        .insert({ chat_id: chatId, role: 'user', content: recordedContent, attachments: paths })
+        .insert({ chat_id: chatId, role: 'user', content: dbContent, attachments: paths })
         .select()
         .single();
       if (insErr) throw new Error(insErr.message);
@@ -360,22 +402,37 @@ export default function App() {
       const currentChat = chats.find((c) => c.id === chatId);
       let systemPrompt = currentChat?.system_prompt;
 
-      // Inject Custom Command Skill prompt context safely on top of existing chat system settings
       if (activeSkill) {
         const skillDirective = `[COMMAND DIRECTIVE: /${activeSkill.command} - ${activeSkill.name}]\n${activeSkill.systemPrompt}`;
-        systemPrompt = systemPrompt 
-          ? `${systemPrompt}\n\n${skillDirective}` 
-          : skillDirective;
+        systemPrompt = systemPrompt ? `${systemPrompt}\n\n${skillDirective}` : skillDirective;
       }
 
       const history = (messagesCache.current.get(chatId) || []).slice(0, -1);
       const historyPaths = history.flatMap((m) => m.attachments || []);
       const historyUrlMap = historyPaths.length ? await resolveUrls(historyPaths) : {};
 
-      // FIX: Prepend high-priority directives to the immediate user prompt block
-      const finalUserPrompt = activeSkill
-        ? `[SYSTEM INSTRUCTION: You must adopt the persona/rules of /${activeSkill.command} for your reply. Instructions: ${activeSkill.systemPrompt}]\n\nUser Message: ${text}`
-        : text;
+      // Parse inline document payload blocks
+      let documentContextText = '';
+      if (documents.length > 0) {
+        documentContextText = documents.map(doc => 
+          `[ATTACHED FILE REFERENCE: ${doc.name}]\n` +
+          `===================================\n` +
+          `${doc.content}\n` +
+          `===================================`
+        ).join('\n\n') + '\n\n';
+      }
+
+      // Context Assembly
+      let finalUserPrompt = text;
+      if (activeSkill) {
+        finalUserPrompt = `[SYSTEM INSTRUCTION: You must adopt the persona/rules of /${activeSkill.command} for your reply. Instructions: ${activeSkill.systemPrompt}]\n\nUser Message: ${finalUserPrompt}`;
+      }
+      if (documentContextText) {
+        finalUserPrompt = `${documentContextText}User Query: ${finalUserPrompt}`;
+      }
+      if (searchContextText) {
+        finalUserPrompt = `${searchContextText}User Query: ${finalUserPrompt}`;
+      }
 
       const llmMessages = [
         ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
@@ -388,16 +445,17 @@ export default function App() {
       ];
 
       const currentModel = getActiveModel(settings, chats, chatId);
-      // --- VISUAL CONSOLE DIAGNOSTICS ---
+
+      // Visual Console Diagnostics
       console.groupCollapsed(
-        `%c🤖 LLM Request Payload [/${activeSkill?.command || 'No Command'}]`, 
-        'color: #6366f1; font-weight: bold; font-size: 11px;'
+        `%c🤖 LLM Request Payload [Docs: ${documents.length} | Search: ${webSearchActive}]`, 
+        'color: #3b82f6; font-weight: bold; font-size: 11px;'
       );
       console.log('%cAPI Endpoint:', 'color: #a3a3a3;', settings.baseUrl);
       console.log('%cModel Assigned:', 'color: #a3a3a3;', currentModel?.id || settings.defaultModelId);
-      console.log('%cFormatted Message Payload Array:', 'color: #a3a3a3;', llmMessages);
+      console.log('%cFormatted Messages Payload Array:', 'color: #a3a3a3;', llmMessages);
       console.groupEnd();
-      // ----------------------------------
+
       const full = await streamChat({
         baseUrl: settings.baseUrl,
         apiKey: settings.apiKey,
@@ -436,6 +494,7 @@ export default function App() {
       }
     } finally {
       streamingTextRef.current = '';
+      setSearchingWeb(false);
       stopStreaming();
     }
   }
@@ -444,7 +503,7 @@ export default function App() {
   if (!session) return <AuthScreen />;
 
   return (
-    <div className="flex h-dvh pt-safe" style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}>
+    <div className="flex h-dvh pt-safe overflow-hidden" style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}>
       <Sidebar
         chats={chats}
         activeChatId={activeChatId}
@@ -460,56 +519,81 @@ export default function App() {
         onSearch={() => setShowSearch(true)}
       />
 
-      <main className="flex flex-1 flex-col min-w-0">
-        <Header
-          settings={settings}
-          chats={chats}
-          activeChatId={activeChatId}
-          messages={messages}
-          onChangeModel={handleChangeModel}
-          onMenuClick={() => setSidebarOpen(true)}
-          onChatSettings={() => setShowChatSettings(true)}
-        />
+      {/* Main split-pane wrapper context with safe height boundaries */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-w-0 h-full relative">
+        <main className="flex flex-1 flex-col h-full min-w-0 overflow-hidden">
+          <Header
+            settings={settings}
+            chats={chats}
+            activeChatId={activeChatId}
+            messages={messages}
+            onChangeModel={handleChangeModel}
+            onMenuClick={() => setSidebarOpen(true)}
+            onChatSettings={() => setShowChatSettings(true)}
+          />
 
-        {activeChatId ? (
-          <>
-            <MessageList
-              messages={messages}
-              urlMap={urlMap}
-              streamingText={streamingText}
-              onEditMessage={handleEditMessage}
-              onRegenerate={handleRegenerate}
-            />
+          {activeChatId ? (
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+              
+              <MessageList
+                messages={messages}
+                urlMap={urlMap}
+                streamingText={streamingText}
+                onEditMessage={handleEditMessage}
+                onRegenerate={handleRegenerate}
+              />
 
-            {error && (
-              <div className="mx-auto max-w-3xl w-full px-4 pb-2">
-                <div
-                  className="rounded-xl px-4 py-2 text-sm"
-                  style={{ background: 'var(--color-danger-muted)', color: '#fca5a5' }}
-                >
-                  {error}
+              {error && (
+                <div className="mx-auto max-w-3xl w-full px-4 pb-2 shrink-0">
+                  <div
+                    className="rounded-xl px-4 py-2 text-sm"
+                    style={{ background: 'var(--color-danger-muted)', color: '#fca5a5' }}
+                  >
+                    {error}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <CapabilityWarning
-              settings={settings}
-              chats={chats}
-              activeChatId={activeChatId}
-              hasFiles={false}
-              onSwitchModel={handleChangeModel}
-            />
+              <CapabilityWarning
+                settings={settings}
+                chats={chats}
+                activeChatId={activeChatId}
+                hasFiles={false}
+                onSwitchModel={handleChangeModel}
+              />
 
-            <ChatInput
-              onSend={sendMessage}
-              sending={sending}
-              onCancel={cancelStreaming}
-            />
-          </>
-        ) : (
-          <EmptyState />
+              {/* Web search progress loader element */}
+              {searchingWeb && (
+                <div className="mx-auto max-w-3xl w-full px-4 pb-2 shrink-0">
+                  <div 
+                    className="rounded-xl px-4 py-3 text-xs flex items-center gap-2"
+                    style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--color-accent-hover)', border: '1px solid var(--color-accent)' }}
+                  >
+                    <Loader2 className="animate-spin" size={14} />
+                    <span>Searching the web for live resources and citing facts...</span>
+                  </div>
+                </div>
+              )}
+
+              <ChatInput
+                onSend={sendMessage}
+                sending={sending}
+                onCancel={cancelStreaming}
+              />
+            </div>
+          ) : (
+            <EmptyState />
+          )}
+        </main>
+
+        {/* Dynamic Slide-out Artifact Preview Panel */}
+        {activeArtifact && (
+          <ArtifactsPanel
+            artifact={activeArtifact}
+            onClose={() => setActiveArtifact(null)}
+          />
         )}
-      </main>
+      </div>
 
       {showSettings && (
         <SettingsModal

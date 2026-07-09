@@ -9,11 +9,13 @@ export default function SettingsModal({ settings, onSave, onClose }) {
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
 
-  const [draft, setDraft] = useState({
+   const [draft, setDraft] = useState({
     baseUrl: settings.baseUrl || '',
     apiKey: settings.apiKey || '',
     defaultModelId: settings.defaultModelId || '',
     models: settings.models || [],
+    searchProvider: settings.searchProvider || 'duckduckgo',
+    searchApiKey: settings.searchApiKey || '',
   });
 
   useEffect(() => {
@@ -115,7 +117,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
         <div className="flex-1 overflow-y-auto space-y-5 pr-1">
           {activeTab === 'general' ? (
             <>
-              {/* General inputs */}
+                           {/* General inputs */}
               <div className="space-y-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-faint)' }}>
                   General Connection Configuration
@@ -148,6 +150,53 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                     }}
                   />
                 </label>
+              </div>
+
+              {/* Divider */}
+              <div style={{ borderTop: '1px solid var(--color-border)' }} />
+
+              {/* Search API Configuration Section */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-faint)' }}>
+                  Web Search Configuration
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    Search Provider
+                    <select
+                      value={draft.searchProvider || 'duckduckgo'}
+                      onChange={(e) => setDraft({ ...draft, searchProvider: e.target.value })}
+                      className="mt-1 w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-colors"
+                      style={{
+                        background: 'var(--color-surface)',
+                        color: 'var(--color-text)',
+                        border: '1px solid var(--color-border)',
+                      }}
+                    >
+                      <option value="duckduckgo">Free DuckDuckGo (No Key)</option>
+                      <option value="tavily">Tavily AI Search</option>
+                      <option value="serper">Google Serper API</option>
+                    </select>
+                  </label>
+                  
+                  {draft.searchProvider !== 'duckduckgo' && (
+                    <label className="block text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                      Search API Key
+                      <input
+                        type="password"
+                        value={draft.searchApiKey || ''}
+                        onChange={(e) => setDraft({ ...draft, searchApiKey: e.target.value })}
+                        placeholder="sk-..."
+                        className="mt-1 w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-colors"
+                        style={{
+                          background: 'var(--color-surface)',
+                          color: 'var(--color-text)',
+                          border: '1px solid var(--color-border)',
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
               </div>
 
               {/* Divider */}
