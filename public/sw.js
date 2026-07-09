@@ -1,12 +1,14 @@
-const CACHE_NAME = 'ai-chat-shell-v1';
+const CACHE_NAME = 'ai-chat-shell-v2';
 
-// App shell files to cache for offline loading
 const SHELL_FILES = [
-  '/',
-  '/index.html',
+  './',
+  './index.html',
+  './manifest.json',
+  './favicon.svg',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
 ];
 
-// Install: cache the app shell
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_FILES))
@@ -14,7 +16,6 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate: clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -24,14 +25,22 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: network-first for everything, fall back to cache for navigation
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
-  // Skip non-GET requests
+  // FIX: Bypass service worker entirely for local development to prevent breaking Vite's dev server (HMR)
+  if (self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1') {
+    return; 
+  }
+
   if (request.method !== 'GET') return;
 
-  // Skip API calls and Supabase requests
+  // Skip caching for non-http/s protocols (resolves chrome-extension scheme issues)
+  if (!request.url.startsWith('http://') && !request.url.startsWith('https://')) {
+    return;
+  }
+
+  // Avoid intercepting auth, database, or media storage API routes
   if (request.url.includes('/rest/') || 
       request.url.includes('/auth/') || 
       request.url.includes('/storage/') ||
@@ -42,17 +51,15 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(request)
       .then((response) => {
-        // Cache successful responses for app shell files
-        if (response.ok && (request.url.endsWith('.js') || request.url.endsWith('.css') || request.url.endsWith('.html') || request.url === new URL('/', self.location).href)) {
+        if (response.ok && (request.url.endsWith('.js') || request.url.endsWith('.css') || request.url.endsWith('.html') || request.url === new URL('./', self.location).href)) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         }
         return response;
       })
       .catch(() => {
-        // Offline: serve from cache, for navigation requests serve index.html
         if (request.mode === 'navigate') {
-          return caches.match('/index.html');
+          return caches.match('./index.html');
         }
         return caches.match(request);
       })

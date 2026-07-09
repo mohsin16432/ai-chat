@@ -1,0 +1,157 @@
+// Default pre-installed system skills
+export const DEFAULT_SKILLS = [
+  {
+    id: 'security-review',
+    name: 'Security Analyst',
+    command: 'security-review',
+    description: 'Analyze code implementations for potential vulnerabilities and exploits.',
+    systemPrompt: 'You are an elite cybersecurity engineer and penetration tester. Review the provided code blocks or text carefully. Identify security issues, memory leaks, OWASP vulnerabilities, and architectural risks, then provide clear, actionable remediation blocks.'
+  },
+  {
+    id: 'caveman',
+    name: 'Caveman Translator',
+    command: 'caveman',
+    description: 'Transform assistant responses into primitive caveman speech patterns.',
+    systemPrompt: 'You are a primitive caveman from the Paleolithic era. You speak in short, simple, broken English sentences, use terms like "me", "ug", "fire", and "cave", and show general confusion about modern technologies, though your insights remain surprisingly accurate.'
+  },
+  {
+    id: 'code-refactor',
+    name: 'Refactoring Wizard',
+    command: 'refactor',
+    description: 'Refactor complex code configurations for optimal performance and readability.',
+    systemPrompt: 'You are a staff software engineer specialized in code optimization. Analyze the provided code. Provide an optimized, clean, idiomatic version with structural improvements, explaining precisely why your changes improve performance, maintainability, or design patterns.'
+  }
+];
+
+const SKILLS_STORAGE_KEY = 'ai-chat-skills';
+
+/**
+ * Load all custom & system preinstalled skills.
+ */
+export function loadSkills() {
+  const stored = localStorage.getItem(SKILLS_STORAGE_KEY);
+  if (!stored) {
+    return DEFAULT_SKILLS;
+  }
+  try {
+    const parsed = JSON.parse(stored);
+    const merged = [...DEFAULT_SKILLS];
+    parsed.forEach(custom => {
+      if (!merged.some(m => m.id === custom.id || m.command === custom.command)) {
+        merged.push(custom);
+      }
+    });
+    return merged;
+  } catch (e) {
+    console.warn('Error loading custom skills, falling back to defaults:', e);
+    return DEFAULT_SKILLS;
+  }
+}
+
+/**
+ * Parse a markdown file with YAML-like frontmatter metadata wrapper (.md)
+ */
+export function parseMarkdownSkill(text) {
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+  if (match) {
+    const yamlSection = match[1];
+    const systemPrompt = match[2].trim();
+    const metadata = {};
+    
+    yamlSection.split('\n').forEach(line => {
+      const colonIdx = line.indexOf(':');
+      if (colonIdx > -1) {
+        const key = line.substring(0, colonIdx).trim().toLowerCase();
+        const val = line.substring(colonIdx + 1).trim();
+        metadata[key] = val.replace(/^["']|["']$/g, ''); // strip outer quotes
+      }
+    });
+
+    if (!metadata.command) {
+      throw new Error("The skill file must contain a 'command' attribute in metadata.");
+    }
+
+    return {
+      id: metadata.id || `custom-${metadata.command}-${Date.now()}`,
+      name: metadata.name || metadata.command,
+      command: metadata.command.toLowerCase().replace(/\s+/g, '-'),
+      description: metadata.description || 'No description provided.',
+      systemPrompt,
+      isCustom: true
+    };
+  }
+  throw new Error("Invalid format. Metadata should be wrapped in '---' frontmatter at the top of your Markdown file.");
+}
+
+/**
+ * Dynamically unzips a skill file using fflate via a dynamic ESM import
+ */
+export async function parseZipFile(arrayBuffer) {
+  // Dynamic import of fflate keeps the initial build size low
+  const fflate = await import('https://cdn.jsdelivr.net/npm/fflate@0.8.2/lib/browser.module.js');
+  
+  const decompressed = fflate.unzipSync(new Uint8Array(arrayBuffer));
+  const decoder = new TextDecoder();
+  
+  let manifestData = null;
+  let systemPrompt = '';
+
+  for (const filename in decompressed) {
+    if (filename.endsWith('manifest.json')) {
+      const text = decoder.decode(decompressed[filename]);
+      manifestData = JSON.parse(text);
+    } else if (filename.endsWith('prompt.txt') || filename.endsWith('prompt.md')) {
+      systemPrompt = decoder.decode(decompressed[filename]).trim();
+    }
+  }
+
+  if (!manifestData || !manifestData.command) {
+    throw new Error("ZIP file must contain a 'manifest.json' file with at least a 'command' value.");
+  }
+  if (!systemPrompt) {
+    throw new Error("ZIP file must contain a 'prompt.txt' or 'prompt.md' instruction text file.");
+  }
+
+  return {
+    id: manifestData.id || `custom-${manifestData.command}-${Date.now()}`,
+    name: manifestData.name || manifestData.command,
+    command: manifestData.command.toLowerCase().replace(/\s+/g, '-'),
+    description: manifestData.description || 'No description provided.',
+    systemPrompt,
+    isCustom: true
+  };
+}
+
+/**
+ * Save user custom skill configurations and dispatch change event.
+ */
+export function saveCustomSkill(skill) {
+  const current = loadSkills();
+  const customOnly = current.filter(s => !DEFAULT_SKILLS.some(d => d.id === s.id));
+  
+  const index = customOnly.findIndex(s => s.id === skill.id || s.command === skill.command);
+  if (index >= 0) {
+    customOnly[index] = { ...skill, isCustom: true };
+  } else {
+    customOnly.push({ ...skill, isCustom: true });
+  }
+  
+  localStorage.setItem(SKILLS_STORAGE_KEY, JSON.stringify(customOnly));
+  
+  // FIX: Dispatch update event to sync listeners instantly
+  window.dispatchEvent(new CustomEvent('skills-changed'));
+  return loadSkills();
+}
+
+/**
+ * Delete a custom skill from storage and dispatch change event.
+ */
+export function deleteCustomSkill(id) {
+  const current = loadSkills();
+  const customOnly = current.filter(s => !DEFAULT_SKILLS.some(d => d.id === s.id) && s.id !== id);
+  localStorage.setItem(SKILLS_STORAGE_KEY, JSON.stringify(customOnly));
+  
+  // FIX: Dispatch update event to sync listeners instantly
+  window.dispatchEvent(new CustomEvent('skills-changed'));
+  return loadSkills();
+}

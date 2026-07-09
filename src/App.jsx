@@ -204,21 +204,59 @@ export default function App() {
     const signal = startStreaming();
 
     try {
-      const currentChat = chats.find((c) => c.id === chatId);
-      const systemPrompt = currentChat?.system_prompt;
+            const currentChat = chats.find((c) => c.id === chatId);
+      let systemPrompt = currentChat?.system_prompt;
 
+      // Detect if a skill execution exists in the message history to re-apply it
       const history = messagesCache.current.get(chatId) || [];
+      const lastMessage = history[history.length - 1];
+      let finalUserPrompt = lastMessage?.content || text;
+
+      if (lastMessage && lastMessage.role === 'user' && lastMessage.content.startsWith('[Skill Executed:')) {
+        const match = lastMessage.content.match(/^\[Skill Executed:\s*\/([^\]]+)\]/);
+        if (match) {
+          const commandTrigger = match[1].trim();
+          const activeSkill = loadSkills().find(s => s.command === commandTrigger);
+          if (activeSkill) {
+            // Re-apply system prompt context
+            const skillDirective = `[COMMAND DIRECTIVE: /${activeSkill.command} - ${activeSkill.name}]\n${activeSkill.systemPrompt}`;
+            systemPrompt = systemPrompt ? `${systemPrompt}\n\n${skillDirective}` : skillDirective;
+
+            // Re-apply active user block context
+            const rawUserText = lastMessage.content.replace(/^\[Skill Executed:\s*\/[^\]]+\]\n?/, '');
+            finalUserPrompt = `[SYSTEM INSTRUCTION: You must adopt the persona/rules of /${activeSkill.command} for your reply. Instructions: ${activeSkill.systemPrompt}]\n\nUser Message: ${rawUserText}`;
+          }
+        }
+      }
+
       const historyPaths = history.flatMap((m) => m.attachments || []);
       const historyUrlMap = historyPaths.length ? await resolveUrls(historyPaths) : {};
 
+      // Slice out the last message so we can send it as the fresh prompt below
+      const messagesToConvert = history.slice(0, -1);
+
       const llmMessages = [
         ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
-        ...history.map((m) => ({
+        ...messagesToConvert.map((m) => ({
           role: m.role,
           content: m.content,
           imageUrls: (m.attachments || []).map((p) => historyUrlMap[p]).filter(Boolean),
         })),
+        { role: 'user', content: finalUserPrompt, imageUrls: (lastMessage?.attachments || []).map((p) => historyUrlMap[p]).filter(Boolean) },
       ];
+
+      const currentModel = getActiveModel(settings, chats, chatId);
+
+      // --- VISUAL CONSOLE DIAGNOSTICS ---
+      console.groupCollapsed(
+        `%c🤖 LLM Regeneration Request Payload`, 
+        'color: #ec4899; font-weight: bold; font-size: 11px;'
+      );
+      console.log('%cAPI Endpoint:', 'color: #a3a3a3;', settings.baseUrl);
+      console.log('%cModel Assigned:', 'color: #a3a3a3;', currentModel?.id || settings.defaultModelId);
+      console.log('%cFormatted Message Payload Array:', 'color: #a3a3a3;', llmMessages);
+      console.groupEnd();
+      // ----------------------------------
 
       const full = await streamChat({
         baseUrl: settings.baseUrl,
@@ -260,7 +298,7 @@ export default function App() {
     }
   }
 
-  async function sendMessage(text, files) {
+      async function sendMessage(text, files, activeSkill = null) {
     if ((!text && files.length === 0) || sending) return;
 
     const activeModel = getActiveModel(settings, chats, activeChatId);
@@ -305,9 +343,14 @@ export default function App() {
         });
       }
 
+            // Record command skills cleanly in the database
+      const recordedContent = activeSkill 
+        ? `[Skill Executed: /${activeSkill.command}]\n${text}` 
+        : text;
+
       const { data: userMsg, error: insErr } = await supabase
         .from('messages')
-        .insert({ chat_id: chatId, role: 'user', content: text, attachments: paths })
+        .insert({ chat_id: chatId, role: 'user', content: recordedContent, attachments: paths })
         .select()
         .single();
       if (insErr) throw new Error(insErr.message);
@@ -315,11 +358,24 @@ export default function App() {
       appendMessage(chatId, userMsg, activeChatIdRef);
 
       const currentChat = chats.find((c) => c.id === chatId);
-      const systemPrompt = currentChat?.system_prompt;
+      let systemPrompt = currentChat?.system_prompt;
+
+      // Inject Custom Command Skill prompt context safely on top of existing chat system settings
+      if (activeSkill) {
+        const skillDirective = `[COMMAND DIRECTIVE: /${activeSkill.command} - ${activeSkill.name}]\n${activeSkill.systemPrompt}`;
+        systemPrompt = systemPrompt 
+          ? `${systemPrompt}\n\n${skillDirective}` 
+          : skillDirective;
+      }
 
       const history = (messagesCache.current.get(chatId) || []).slice(0, -1);
       const historyPaths = history.flatMap((m) => m.attachments || []);
       const historyUrlMap = historyPaths.length ? await resolveUrls(historyPaths) : {};
+
+      // FIX: Prepend high-priority directives to the immediate user prompt block
+      const finalUserPrompt = activeSkill
+        ? `[SYSTEM INSTRUCTION: You must adopt the persona/rules of /${activeSkill.command} for your reply. Instructions: ${activeSkill.systemPrompt}]\n\nUser Message: ${text}`
+        : text;
 
       const llmMessages = [
         ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
@@ -328,10 +384,20 @@ export default function App() {
           content: m.content,
           imageUrls: (m.attachments || []).map((p) => historyUrlMap[p]).filter(Boolean),
         })),
-        { role: 'user', content: text, imageUrls: dataUrls },
+        { role: 'user', content: finalUserPrompt, imageUrls: dataUrls },
       ];
 
       const currentModel = getActiveModel(settings, chats, chatId);
+      // --- VISUAL CONSOLE DIAGNOSTICS ---
+      console.groupCollapsed(
+        `%c🤖 LLM Request Payload [/${activeSkill?.command || 'No Command'}]`, 
+        'color: #6366f1; font-weight: bold; font-size: 11px;'
+      );
+      console.log('%cAPI Endpoint:', 'color: #a3a3a3;', settings.baseUrl);
+      console.log('%cModel Assigned:', 'color: #a3a3a3;', currentModel?.id || settings.defaultModelId);
+      console.log('%cFormatted Message Payload Array:', 'color: #a3a3a3;', llmMessages);
+      console.groupEnd();
+      // ----------------------------------
       const full = await streamChat({
         baseUrl: settings.baseUrl,
         apiKey: settings.apiKey,

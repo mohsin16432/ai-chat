@@ -1,7 +1,44 @@
-import { useState } from 'react';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useState, lazy, Suspense } from 'react';
 import { Copy, Check } from 'lucide-react';
+
+// Dynamically import the syntax highlighter and its style index (resolved by Rolldown)
+const LazyHighlighter = lazy(() => 
+  Promise.all([
+    import('react-syntax-highlighter'),
+    import('react-syntax-highlighter/dist/esm/styles/prism')
+  ]).then(([highlighterModule, styleIndex]) => ({
+    default: ({ language, showLineNumbers, code, customStyle, lineNumberStyle }) => (
+      <highlighterModule.Prism
+        language={language}
+        style={styleIndex.oneDark} // Destructure oneDark directly from working styles index
+        showLineNumbers={showLineNumbers}
+        customStyle={customStyle}
+        lineNumberStyle={lineNumberStyle}
+        wrapLongLines={false}
+      >
+        {code}
+      </highlighterModule.Prism>
+    )
+  }))
+);
+
+// Fallback skeleton that mirrors the dark theme styling to prevent layout shifts (CLS)
+function CodeFallback({ code }) {
+  return (
+    <pre 
+      className="overflow-x-auto font-mono text-[0.8rem]"
+      style={{
+        margin: 0,
+        padding: '1rem',
+        background: '#0d0d0d',
+        lineHeight: '1.5',
+        color: 'var(--color-text-muted)',
+      }}
+    >
+      <code>{code}</code>
+    </pre>
+  );
+}
 
 export default function CodeBlock({ language, children }) {
   const [copied, setCopied] = useState(false);
@@ -63,32 +100,31 @@ export default function CodeBlock({ language, children }) {
         </button>
       </div>
 
-      {/* Code content */}
-      <div className="overflow-x-auto">
-        <SyntaxHighlighter
-          language={language || 'text'}
-          style={oneDark}
-          showLineNumbers={code.split('\n').length > 3}
-          customStyle={{
-            margin: 0,
-            padding: '1rem',
-            background: '#0d0d0d',
-            fontSize: '0.8rem',
-            lineHeight: '1.5',
-            borderRadius: 0,
-            minWidth: 'fit-content',
-          }}
-          lineNumberStyle={{
-            color: '#4a4a4a',
-            fontSize: '0.75rem',
-            paddingRight: '1rem',
-            minWidth: '2rem',
-            userSelect: 'none',
-          }}
-          wrapLongLines={false}
-        >
-          {code}
-        </SyntaxHighlighter>
+      {/* Code content container with Suspense Fallback */}
+      <div className="overflow-x-auto bg-[#0d0d0d]">
+        <Suspense fallback={<CodeFallback code={code} />}>
+          <LazyHighlighter
+            language={language || 'text'}
+            code={code}
+            showLineNumbers={code.split('\n').length > 3}
+            customStyle={{
+              margin: 0,
+              padding: '1rem',
+              background: '#0d0d0d',
+              fontSize: '0.8rem',
+              lineHeight: '1.5',
+              borderRadius: 0,
+              minWidth: 'fit-content',
+            }}
+            lineNumberStyle={{
+              color: '#4a4a4a',
+              fontSize: '0.75rem',
+              paddingRight: '1rem',
+              minWidth: '2rem',
+              userSelect: 'none',
+            }}
+          />
+        </Suspense>
       </div>
     </div>
   );
