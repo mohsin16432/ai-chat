@@ -28,9 +28,14 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
+  // FIX: Bypass service worker entirely for local development to prevent breaking Vite's dev server (HMR)
+  if (self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1') {
+    return; 
+  }
+
   if (request.method !== 'GET') return;
 
-  // FIX: Skip caching for non-http/s protocols (resolves chrome-extension scheme issues)
+  // Skip caching for non-http/s protocols (resolves chrome-extension scheme issues)
   if (!request.url.startsWith('http://') && !request.url.startsWith('https://')) {
     return;
   }
