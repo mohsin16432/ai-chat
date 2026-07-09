@@ -13,19 +13,46 @@ if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register(swPath)
         .then((registration) => {
           console.log('PWA ServiceWorker registered with scope:', registration.scope);
+
+          // Force update check on load
+          registration.update();
+
+          // Listen for new service worker installation
+          registration.onupdatefound = () => {
+            const installingWorker = registration.installing;
+            if (installingWorker) {
+              installingWorker.onstatechange = () => {
+                if (installingWorker.state === 'installed') {
+                  if (navigator.serviceWorker.controller) {
+                    // New update available! Refresh to apply
+                    console.log('🔄 New PWA update downloaded. Refreshing application...');
+                    window.location.reload();
+                  }
+                }
+              };
+            }
+          };
         })
         .catch((error) => {
           console.warn('PWA ServiceWorker registration failed:', error);
         });
     });
+
+    // Ensure state transitions trigger reloading
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    });
   } else {
-    // FIX: Automatically find and unregister any stuck service workers on localhost
+    // Automatically find and unregister any stuck service workers on localhost
     navigator.serviceWorker.getRegistrations().then((registrations) => {
       for (const registration of registrations) {
         registration.unregister().then((success) => {
           if (success) {
             console.log('🧹 Stuck local Service Worker detected and cleared.');
-            // Force reload the page once to clear intercepted route caches
             window.location.reload();
           }
         });
