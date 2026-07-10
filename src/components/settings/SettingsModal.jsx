@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
-import { X, Settings, Terminal, Upload, Trash2, ShieldAlert } from 'lucide-react';
+import { X, Settings, Terminal, Upload, Trash2, ShieldAlert, Loader2, Play } from 'lucide-react';
 import ModelManager from './ModelManager';
-import { loadSkills, saveCustomSkill, deleteCustomSkill, parseMarkdownSkill, parseZipFile } from '../../lib/skills';
+import { loadSkills, saveCustomSkill, saveCustomSkills, deleteCustomSkill, parseMarkdownSkill, parseZipFile, downloadSkillFromRemote } from '../../lib/skills';
 
 export default function SettingsModal({ settings, onSave, onClose }) {
   const [activeTab, setActiveTab] = useState('general'); // 'general' | 'skills'
   const [skills, setSkills] = useState([]);
+  const [cliInput, setCliInput] = useState('');
+  const [isInstalling, setIsInstalling] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
 
-   const [draft, setDraft] = useState({
+  const [draft, setDraft] = useState({
     baseUrl: settings.baseUrl || '',
     apiKey: settings.apiKey || '',
     defaultModelId: settings.defaultModelId || '',
@@ -26,8 +28,40 @@ export default function SettingsModal({ settings, onSave, onClose }) {
     setDraft({ ...draft, models, defaultModelId });
   }
 
-  // Handle uploading and parsing custom skills (.md or .zip)
-    // Handle uploading and parsing custom skills (.md or .zip)
+  // Handle Simulated CLI / URL Installs
+    async function handleCliInstall(e) {
+    e.preventDefault();
+    const command = cliInput.trim();
+    if (!command || isInstalling) return;
+
+    setUploadError('');
+    setUploadSuccess('');
+    setIsInstalling(true);
+
+    try {
+      const parsedSkills = await downloadSkillFromRemote(command);
+      
+      // Handle both single skill and bulk install arrays
+      if (Array.isArray(parsedSkills) && parsedSkills.length > 1) {
+        saveCustomSkills(parsedSkills);
+        setSkills(loadSkills());
+        const names = parsedSkills.map(s => `/${s.command}`).join(', ');
+        setUploadSuccess(`Successfully installed ${parsedSkills.length} skills: ${names}`);
+      } else {
+        const skill = Array.isArray(parsedSkills) ? parsedSkills[0] : parsedSkills;
+        saveCustomSkill(skill);
+        setSkills(loadSkills());
+        setUploadSuccess(`Successfully installed skill: /${skill.command}`);
+      }
+      setCliInput('');
+    } catch (err) {
+      setUploadError(err.message || 'Failed to download remote skill package.');
+    } finally {
+      setIsInstalling(false);
+    }
+  }
+
+  // Handle uploading and parsing local custom skills (.md or .zip)
   async function handleSkillFileUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -41,7 +75,6 @@ export default function SettingsModal({ settings, onSave, onClose }) {
 
       if (filename.endsWith('.md')) {
         const text = await file.text();
-        // FIXED: Pass filename context to parser
         parsedSkill = parseMarkdownSkill(text, file.name);
       } else if (filename.endsWith('.zip')) {
         const buffer = await file.arrayBuffer();
@@ -50,16 +83,15 @@ export default function SettingsModal({ settings, onSave, onClose }) {
         throw new Error("Unsupported file format. Please upload a '.md' markdown file or a '.zip' configuration folder.");
       }
 
-      // If this upload overrides pre-existing custom commands, remove old key
       const updated = saveCustomSkill(parsedSkill);
       setSkills(updated);
       setUploadSuccess(`Successfully installed skill: /${parsedSkill.command}`);
     } catch (err) {
       setUploadError(err.message || 'Failed to parse skill package.');
     } finally {
-      e.target.value = ''; // Reset input path
+      e.target.value = '';
     }
-  } 
+  }
 
   function handleDeleteSkill(id) {
     const updated = deleteCustomSkill(id);
@@ -120,7 +152,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
         <div className="flex-1 overflow-y-auto space-y-5 pr-1">
           {activeTab === 'general' ? (
             <>
-                           {/* General inputs */}
+              {/* General inputs */}
               <div className="space-y-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-faint)' }}>
                   General Connection Configuration
@@ -213,33 +245,75 @@ export default function SettingsModal({ settings, onSave, onClose }) {
               />
             </>
           ) : (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>Install Custom Commands</h3>
-                <p className="text-xs" style={{ color: 'var(--color-text-faint)' }}>
-                  Upload a <strong>.md</strong> Markdown file containing standard frontmatter tags or install a packaged <strong>.zip</strong> system command bundle.
+            <div className="space-y-5">
+              
+              {/* Dynamic Simulated CLI Terminal Installer */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold flex items-center gap-1.5" style={{ color: 'var(--color-text)' }}>
+                  <Terminal size={14} className="text-[var(--color-accent)]" /> Remote CLI Installer
+                </h3>
+                <form onSubmit={handleCliInstall} className="flex gap-2">
+                  <input
+                    value={cliInput}
+                    onChange={(e) => setCliInput(e.target.value)}
+                    placeholder="npx skills add https://github.com/mattpocock/skills --skill grill-me"
+                    className="flex-1 font-mono text-xs rounded-xl px-4 py-2.5 outline-none transition-colors"
+                    style={{
+                      background: 'var(--color-surface)',
+                      color: 'var(--color-text)',
+                      border: '1px solid var(--color-border)',
+                    }}
+                    disabled={isInstalling}
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-xl px-4 py-2.5 text-xs font-semibold flex items-center gap-1.5 transition-all select-none active:scale-95 shrink-0"
+                    style={{
+                      background: 'var(--color-accent)',
+                      color: 'white',
+                    }}
+                    disabled={isInstalling || !cliInput.trim()}
+                  >
+                    {isInstalling ? (
+                      <><Loader2 size={12} className="animate-spin" /> Installing...</>
+                    ) : (
+                      <><Play size={10} className="fill-white" /> Run</>
+                    )}
+                  </button>
+                </form>
+                <p className="text-[10px]" style={{ color: 'var(--color-text-faint)' }}>
+                  Supports simulated NPX instructions or raw GitHub Markdown file URLs.
                 </p>
               </div>
 
-              {/* File Uploader Dropzone Wrapper */}
+              <div style={{ borderTop: '1px solid var(--color-border)' }} />
+
+              <div>
+                <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>Install Custom Commands</h3>
+                <p className="text-xs" style={{ color: 'var(--color-text-faint)' }}>
+                  Or select a local <strong>.md</strong> file or packaged <strong>.zip</strong> system bundle from your hard drive.
+                </p>
+              </div>
+
+              {/* Local File Selector Dropzone */}
               <div className="relative">
                 <label 
-                  className="flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-6 cursor-pointer hover:bg-[var(--color-surface-hover)] transition-all"
+                  className="flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-5 cursor-pointer hover:bg-[var(--color-surface-hover)] transition-all"
                   style={{ borderColor: 'var(--color-border)' }}
                 >
-                  <Upload size={24} className="mb-2" style={{ color: 'var(--color-accent)' }} />
-                  <span className="text-xs font-semibold">Click to select files (.md, .zip)</span>
-                  <span className="text-[10px] mt-1" style={{ color: 'var(--color-text-faint)' }}>Limit 1 item per selection</span>
+                  <Upload size={20} className="mb-1.5" style={{ color: 'var(--color-accent)' }} />
+                  <span className="text-xs font-semibold">Click to upload files (.md, .zip)</span>
                   <input 
                     type="file" 
                     accept=".md,.zip" 
                     onChange={handleSkillFileUpload} 
                     className="hidden" 
+                    disabled={isInstalling}
                   />
                 </label>
               </div>
 
-              {/* Upload Status Feedbacks */}
+              {/* Status Feedbacks */}
               {uploadError && (
                 <div className="rounded-xl px-4 py-3 text-xs flex gap-2 items-start" style={{ background: 'var(--color-danger-muted)', color: '#fca5a5' }}>
                   <ShieldAlert size={14} className="shrink-0 mt-0.5" />
@@ -257,7 +331,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                 <h4 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-faint)' }}>
                   Installed Commands List
                 </h4>
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
                   {skills.map((skill) => (
                     <div 
                       key={skill.id}
@@ -273,13 +347,12 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                               {skill.name}
                             </span>
                           </div>
-                          <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--color-text-faint)' }}>
+                          <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-faint)' }}>
                             {skill.description}
                           </p>
                         </div>
                       </div>
 
-                      {/* Delete Trigger */}
                       {skill.isCustom && (
                         <button
                           onClick={() => handleDeleteSkill(skill.id)}
