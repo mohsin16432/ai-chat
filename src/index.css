@@ -48,8 +48,6 @@ html, body {
 }
 
 /* Code blocks */
-/* Code blocks — handled by react-syntax-highlighter, 
-   these are fallbacks for prose styling */
 pre code {
   background: transparent !important;
   padding: 0 !important;
@@ -79,12 +77,24 @@ code:not(pre code) {
   user-select: none !important;
 }
 
-/* Safe area */
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
+/* --- SAFE AREA SYSTEM OVERRIDES --- */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Defensive Native App Safe-Area offsets when running inside Android/iOS WebViews */
+.native-app .pb-safe {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 24px)) !important;
+}
+
+.native-app .pt-safe {
+  padding-top: max(1.25rem, env(safe-area-inset-top, 20px)) !important;
+}
+/* ---------------------------------- */
 
 /* Prose overrides for dark theme */
 .prose-chat {
@@ -107,13 +117,6 @@ code:not(pre code) {
 /* Textarea auto-height */
 textarea {
   field-sizing: content;
-}
-
-/* iOS standalone mode: status bar padding */
-@supports (padding-top: env(safe-area-inset-top)) {
-  .pt-safe {
-    padding-top: env(safe-area-inset-top);
-  }
 }
 
 /* ✨ Phase 6: Glassmorphic UI Overlay */
@@ -146,7 +149,12 @@ textarea {
   border: 1px solid rgba(99, 102, 241, 0.3) !important;
 }
 
-/* Smooth transition for all interactions */
-* {
+/* FIXED PERFORMANCE: Optimize transition targets to prevent micro-stuttering on WebView rendering */
+button, 
+a, 
+input, 
+textarea, 
+.glass-surface, 
+.glass-surface-alt {
   transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }

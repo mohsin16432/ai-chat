@@ -92,9 +92,9 @@ export default function Sidebar({
           ))}
         </div>
 
-        {/* Bottom section */}
+        {/* Bottom section — Upgraded with pb-safe wrapper alignment */}
         <div
-          className="p-3 flex items-center gap-2 shrink-0"
+          className="p-3 pb-safe flex items-center gap-2 shrink-0"
           style={{ borderTop: '1px solid var(--color-border)' }}
         >
           <button

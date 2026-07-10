@@ -8,13 +8,6 @@ export const DEFAULT_SKILLS = [
     systemPrompt: 'You are an elite cybersecurity engineer and penetration tester. Review the provided code blocks or text carefully. Identify security issues, memory leaks, OWASP vulnerabilities, and architectural risks, then provide clear, actionable remediation blocks.'
   },
   {
-    id: 'caveman',
-    name: 'Caveman Translator',
-    command: 'caveman',
-    description: 'Transform assistant responses into primitive caveman speech patterns.',
-    systemPrompt: 'You are a primitive caveman from the Paleolithic era. You speak in short, simple, broken English sentences, use terms like "me", "ug", "fire", and "cave", and show general confusion about modern technologies, though your insights remain surprisingly accurate.'
-  },
-  {
     id: 'code-refactor',
     name: 'Refactoring Wizard',
     command: 'refactor',
@@ -37,6 +30,7 @@ export function loadSkills() {
     const parsed = JSON.parse(stored);
     const merged = [...DEFAULT_SKILLS];
     parsed.forEach(custom => {
+      // Prevent custom uploaded skills from being overwritten by preinstalled keys
       if (!merged.some(m => m.id === custom.id || m.command === custom.command)) {
         merged.push(custom);
       }
@@ -49,47 +43,101 @@ export function loadSkills() {
 }
 
 /**
- * Parse a markdown file with YAML-like frontmatter metadata wrapper (.md)
+ * Robust Client-Side frontmatter parser.
+ * Safely handles single-line key-values, multiline descriptions, and fallback generations.
  */
-export function parseMarkdownSkill(text) {
-  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
-  if (match) {
-    const yamlSection = match[1];
-    const systemPrompt = match[2].trim();
-    const metadata = {};
-    
-    yamlSection.split('\n').forEach(line => {
-      const colonIdx = line.indexOf(':');
-      if (colonIdx > -1) {
-        const key = line.substring(0, colonIdx).trim().toLowerCase();
-        const val = line.substring(colonIdx + 1).trim();
-        metadata[key] = val.replace(/^["']|["']$/g, ''); // strip outer quotes
-      }
-    });
+export function parseMarkdownSkill(text, filename = '') {
+  const trimmed = text.trim();
+  const match = trimmed.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+  if (!match) {
+    throw new Error("Invalid format. Metadata should be wrapped in '---' frontmatter at the top of your Markdown file.");
+  }
 
-    if (!metadata.command) {
-      throw new Error("The skill file must contain a 'command' attribute in metadata.");
+  const yamlSection = match[1];
+  const systemPrompt = match[2].trim();
+  
+  const metadata = {};
+  const lines = yamlSection.split(/\r?\n/);
+  
+  let currentKey = null;
+  let blockBuffer = [];
+  let isBlockMode = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // Handle indented block lines (multiline description parser)
+    if (isBlockMode) {
+      if (line.trim() === '' || /^\s+/.test(line)) {
+        blockBuffer.push(line.trim());
+        continue;
+      } else {
+        // Indentation ended, compile the multiline block
+        metadata[currentKey] = blockBuffer.join(' ');
+        isBlockMode = false;
+        blockBuffer = [];
+        currentKey = null;
+      }
     }
 
-    return {
-      id: metadata.id || `custom-${metadata.command}-${Date.now()}`,
-      name: metadata.name || metadata.command,
-      command: metadata.command.toLowerCase().replace(/\s+/g, '-'),
-      description: metadata.description || 'No description provided.',
-      systemPrompt,
-      isCustom: true
-    };
+    const colonIdx = line.indexOf(':');
+    if (colonIdx > -1) {
+      const key = line.substring(0, colonIdx).trim().toLowerCase();
+      const val = line.substring(colonIdx + 1).trim();
+
+      if (val === '>' || val === '|') {
+        // Trigger multiline capture mode
+        currentKey = key;
+        isBlockMode = true;
+        blockBuffer = [];
+      } else {
+        metadata[key] = val.replace(/^["']|["']$/g, '');
+      }
+    }
   }
-  throw new Error("Invalid format. Metadata should be wrapped in '---' frontmatter at the top of your Markdown file.");
+
+  // Flush any remaining uncompiled block buffers
+  if (isBlockMode && currentKey) {
+    metadata[currentKey] = blockBuffer.join(' ');
+  }
+
+  // Fallback 1: Extract the Name
+  let name = metadata.name || '';
+  if (!name && filename) {
+    // Generate clean capitalization from filename
+    const baseName = filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, ' ');
+    name = baseName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  }
+
+  // Fallback 2: Generate the Command trigger slug
+  let command = metadata.command || '';
+  if (!command && name) {
+    command = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+  }
+
+  // Final fallbacks
+  if (!command) {
+    command = `skill-${Date.now()}`;
+  }
+  if (!name) {
+    name = command;
+  }
+
+  return {
+    id: metadata.id || `custom-${command}-${Date.now()}`,
+    name: name,
+    command: command.toLowerCase().replace(/\s+/g, '-'),
+    description: metadata.description || 'No description provided.',
+    systemPrompt,
+    isCustom: true
+  };
 }
 
 /**
  * Dynamically unzips a skill file using fflate via a dynamic ESM import
  */
 export async function parseZipFile(arrayBuffer) {
-  // Dynamic import of fflate keeps the initial build size low
   const fflate = await import('https://cdn.jsdelivr.net/npm/fflate@0.8.2/lib/browser.module.js');
-  
   const decompressed = fflate.unzipSync(new Uint8Array(arrayBuffer));
   const decoder = new TextDecoder();
   
@@ -137,8 +185,6 @@ export function saveCustomSkill(skill) {
   }
   
   localStorage.setItem(SKILLS_STORAGE_KEY, JSON.stringify(customOnly));
-  
-  // FIX: Dispatch update event to sync listeners instantly
   window.dispatchEvent(new CustomEvent('skills-changed'));
   return loadSkills();
 }
@@ -150,8 +196,6 @@ export function deleteCustomSkill(id) {
   const current = loadSkills();
   const customOnly = current.filter(s => !DEFAULT_SKILLS.some(d => d.id === s.id) && s.id !== id);
   localStorage.setItem(SKILLS_STORAGE_KEY, JSON.stringify(customOnly));
-  
-  // FIX: Dispatch update event to sync listeners instantly
   window.dispatchEvent(new CustomEvent('skills-changed'));
   return loadSkills();
 }

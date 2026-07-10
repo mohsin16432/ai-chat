@@ -357,10 +357,22 @@ export default function App() {
       const paths = [];
       const dataUrls = [];
 
+      // Safe fallback for WebViews that do not support crypto.randomUUID natively
+      const generateUUID = () => {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+          return crypto.randomUUID();
+        }
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      };
+
       for (const originalFile of files) {
         const f = await downscaleImage(originalFile);
         const ext = (f.name.split('.').pop() || 'bin').toLowerCase();
-        const path = `${uid}/${crypto.randomUUID()}.${ext}`;
+        const path = `${uid}/${generateUUID()}.${ext}`;
         const { error: upErr } = await supabase.storage.from('media').upload(path, f);
         if (upErr) throw new Error(`Upload failed: ${upErr.message}`);
         paths.push(path);

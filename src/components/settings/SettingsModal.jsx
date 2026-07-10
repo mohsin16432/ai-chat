@@ -27,6 +27,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
   }
 
   // Handle uploading and parsing custom skills (.md or .zip)
+    // Handle uploading and parsing custom skills (.md or .zip)
   async function handleSkillFileUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -40,7 +41,8 @@ export default function SettingsModal({ settings, onSave, onClose }) {
 
       if (filename.endsWith('.md')) {
         const text = await file.text();
-        parsedSkill = parseMarkdownSkill(text);
+        // FIXED: Pass filename context to parser
+        parsedSkill = parseMarkdownSkill(text, file.name);
       } else if (filename.endsWith('.zip')) {
         const buffer = await file.arrayBuffer();
         parsedSkill = await parseZipFile(buffer);
@@ -48,6 +50,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
         throw new Error("Unsupported file format. Please upload a '.md' markdown file or a '.zip' configuration folder.");
       }
 
+      // If this upload overrides pre-existing custom commands, remove old key
       const updated = saveCustomSkill(parsedSkill);
       setSkills(updated);
       setUploadSuccess(`Successfully installed skill: /${parsedSkill.command}`);
@@ -56,7 +59,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
     } finally {
       e.target.value = ''; // Reset input path
     }
-  }
+  } 
 
   function handleDeleteSkill(id) {
     const updated = deleteCustomSkill(id);

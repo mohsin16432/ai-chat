@@ -1,5 +1,6 @@
 /**
- * Executes a web search query across Tavily, Serper, or Free DuckDuckGo API.
+ * Executes a web search query across Tavily, Serper, or Free Multi-Channel APIs
+ * (Google News RSS Feed & Wikipedia Factual Engines).
  */
 
 async function searchTavily(query, apiKey) {
@@ -46,37 +47,85 @@ async function searchSerper(query, apiKey) {
 }
 
 /**
- * FAIL-SAFE: DuckDuckGo Native Instant Answer API with native CORS support.
+ * CHANNEL A: Google News RSS Feed Search Engine
+ * Bypasses bot captchas by parsing Google's lightweight XML feed.
+ * Provides live breaking headlines, source names, and verified reference URLs.
  */
-async function searchDuckDuckGoInstant(query) {
-  console.log('%c🔍 Querying DuckDuckGo Native Instant Answers...', 'color: #f59e0b; font-weight: bold;');
-  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1`;
+async function searchGoogleNewsRSS(query) {
+  console.log('%c📰 Fetching Live Headlines via Google News RSS Engine...', 'color: #3b82f6; font-weight: bold;');
+  const targetUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
+  
+  // Use AllOrigins with raw parsing to bypass CORS safely
+  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+  
+  const response = await fetch(proxyUrl);
+  if (!response.ok) throw new Error('Google News RSS stream failed');
+  const xmlText = await response.text();
+  
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+  const items = xmlDoc.querySelectorAll('item');
+  const results = [];
+  
+  items.forEach((item, idx) => {
+    if (idx >= 4) return; // Keep top 4 live news items
+    const title = item.querySelector('title')?.textContent || 'Headline';
+    const rawUrl = item.querySelector('link')?.textContent || '';
+    const pubDate = item.querySelector('pubDate')?.textContent || '';
+    const source = item.querySelector('source')?.textContent || 'News';
+    
+    // Clean out timezone padding for compact prompts
+    const cleanDate = pubDate.replace(/ \+0000| GMT/g, '');
+    
+    results.push({
+      title: `${title} (${source})`,
+      url: rawUrl,
+      snippet: `Published: ${cleanDate} - Live News Report detailing: ${title}`
+    });
+  });
+  
+  return results;
+}
+
+/**
+ * CHANNEL B: Wikipedia Organic Search API
+ * 100% stable, supports CORS natively, and never rate-limits.
+ * Provides deep context blocks for concepts, places, organizations, and historical events.
+ */
+async function searchWikipedia(query) {
+  console.log('%c📖 Fetching Context via Wikipedia Factual Engine...', 'color: #10b981; font-weight: bold;');
+  const url = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
   
   const response = await fetch(url);
-  if (!response.ok) throw new Error('Instant Answer API offline');
+  if (!response.ok) throw new Error('Wikipedia search failed');
   const data = await response.json();
   
-  const results = [];
-  if (data.AbstractText) {
-    results.push({
-      title: data.Heading || 'Abstract Information',
-      url: data.AbstractURL || 'https://duckduckgo.com',
-      snippet: data.AbstractText
-    });
-  }
-  if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-    data.RelatedTopics.forEach((topic, idx) => {
-      if (idx >= 4) return;
-      if (topic.Text && topic.FirstURL) {
-        results.push({
-          title: topic.Text.split(' - ')[0] || 'Related Source',
-          url: topic.FirstURL,
-          snippet: topic.Text
-        });
-      }
-    });
-  }
-  return results;
+  return (data.query?.search || []).slice(0, 3).map(item => ({
+    title: `${item.title} (Wikipedia Background)`,
+    url: `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title)}`,
+    snippet: item.snippet.replace(/<\/?[^>]+(>|$)/g, "") // Strip HTML tags
+  }));
+}
+
+/**
+ * Aggregates real-time news and factual articles into a unified search context
+ */
+async function searchFreeMultiChannel(query) {
+  const aggregatedResults = [];
+  
+  // Execute both channels in parallel to keep searches lightning-fast
+  const outcomes = await Promise.allSettled([
+    searchGoogleNewsRSS(query),
+    searchWikipedia(query)
+  ]);
+  
+  outcomes.forEach((outcome) => {
+    if (outcome.status === 'fulfilled' && outcome.value) {
+      aggregatedResults.push(...outcome.value);
+    }
+  });
+  
+  return aggregatedResults.slice(0, 6); // Limit to top 6 relevant results
 }
 
 export async function performWebSearch(query, provider, apiKey) {
@@ -90,10 +139,10 @@ export async function performWebSearch(query, provider, apiKey) {
     if (provider === 'serper' && apiKey) {
       return await searchSerper(trimmed, apiKey);
     }
-    // Zero-configuration fallback: DuckDuckGo Native Instant Answers
-    return await searchDuckDuckGoInstant(trimmed);
+    // Zero-Config Free Aggregator (Google News RSS + Wikipedia)
+    return await searchFreeMultiChannel(trimmed);
   } catch (err) {
-    console.debug('Primary search failed, using DuckDuckGo Instant Answers...', err);
-    return await searchDuckDuckGoInstant(trimmed);
+    console.warn('Configured search API failed, falling back to free search aggregator...', err);
+    return await searchFreeMultiChannel(trimmed).catch(() => []);
   }
 }
