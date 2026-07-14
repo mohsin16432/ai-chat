@@ -14,7 +14,6 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
   const [activeSkill, setActiveSkill] = useState(null);
   const [webSearchActive, setWebSearchActive] = useState(false); // Web Search state toggle
 
-
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const commandMenuRef = useRef(null);
@@ -147,11 +146,6 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
         return;
       }
     }
-
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
   };
 
   const removeFile = (idxToRemove) => {
@@ -163,13 +157,20 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
   };
 
   return (
-    <div className="pb-safe relative">
+    /* Added top border, background color, and top padding to create a distinct bottom bar */
+    <div 
+      className="pb-safe relative pt-4 border-t"
+      style={{
+        background: 'var(--color-surface)',
+        borderColor: 'var(--color-border)',
+      }}
+    >
       
-      {/* Floating command dropdown */}
+      {/* Floating command dropdown - updated to max-w-5xl */}
       {showCommands && (
         <div 
           ref={commandMenuRef}
-          className="mx-auto max-w-3xl left-4 right-4 absolute bottom-full mb-2 border rounded-2xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto z-50 transition-all"
+          className="mx-auto max-w-5xl left-4 right-4 absolute bottom-full mb-2 border rounded-2xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto z-50 transition-all"
           style={{
             background: 'var(--color-surface-alt)',
             borderColor: 'var(--color-border)',
@@ -203,9 +204,9 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
         </div>
       )}
 
-      {/* Files Previews & Metadata Tray */}
+      {/* Files Previews & Metadata Tray - updated to max-w-5xl */}
       {files.length > 0 && (
-        <div className="mx-auto max-w-3xl px-4 pb-2">
+        <div className="mx-auto max-w-5xl px-4 pb-2">
           <div className="flex gap-2 flex-wrap">
             {files.map((f, i) => (
               <div
@@ -242,17 +243,17 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
         </div>
       )}
 
-      {/* Parsing progress indicator */}
+      {/* Parsing progress indicator - updated to max-w-5xl */}
       {parsingFile && (
-        <div className="mx-auto max-w-3xl px-4 pb-2 flex items-center gap-2 text-xs" style={{ color: 'var(--color-accent)' }}>
+        <div className="mx-auto max-w-5xl px-4 pb-2 flex items-center gap-2 text-xs" style={{ color: 'var(--color-accent)' }}>
           <Loader2 className="animate-spin" size={12} />
           <span>Analyzing document contents client-side...</span>
         </div>
       )}
 
-      {/* Active Command Tag Indicator */}
+      {/* Active Command Tag Indicator - updated to max-w-5xl */}
       {activeSkill && (
-        <div className="mx-auto max-w-3xl px-4 pb-2">
+        <div className="mx-auto max-w-5xl px-4 pb-2">
           <div 
             className="inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs border"
             style={{
@@ -274,8 +275,8 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
         </div>
       )}
 
-      {/* Input area */}
-      <div className="mx-auto max-w-3xl px-4 pb-4">
+      {/* Input area - updated to max-w-5xl */}
+      <div className="mx-auto max-w-5xl px-4 pb-4">
         <div
           className="flex items-end gap-2 rounded-2xl px-3 py-2"
           style={{

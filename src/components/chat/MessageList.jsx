@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Loader2, Bot, ArrowDown } from 'lucide-react';
+import { Loader2, Bot, ArrowDown, Sparkles } from 'lucide-react';
 import MessageBubble from './MessageBubble';
 import CodeBlock from './CodeBlock';
+import { getActiveModel } from '../../lib/models';
 
-export default function MessageList({ messages, urlMap, streamingText, onEditMessage, onRegenerate }) {
+export default function MessageList({ messages, urlMap, streamingText, onEditMessage, onRegenerate, settings, chats, activeChatId }) {
   const containerRef = useRef(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showScrollBadge, setShowScrollBadge] = useState(false);
@@ -63,6 +64,38 @@ export default function MessageList({ messages, urlMap, streamingText, onEditMes
     }
   }, [streamingText, isAtBottom]);
 
+  // Helper to resolve the model icon URL or return a fallback (matching ModelPicker logic)
+  const getModelIconUrl = (model) => {
+    if (model?.metadata?.image?.url) {
+      return model.metadata.image.url;
+    }
+    if (model?.icon) {
+      return model.icon;
+    }
+    const id = model?.id?.toLowerCase() || '';
+    if (id.startsWith('openai/') || id.includes('gpt')) {
+      return 'https://images.unsplash.com/photo-1677442136019-21780efad99a?w=40&auto=format&fit=crop&q=60';
+    }
+    if (id.startsWith('anthropic/') || id.includes('claude')) {
+      return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=40&auto=format&fit=crop&q=60';
+    }
+    if (id.startsWith('google/') || id.includes('gemini')) {
+      return 'https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?w=40&auto=format&fit=crop&q=60';
+    }
+    if (id.startsWith('meta-llama/') || id.includes('llama')) {
+      return 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=40&auto=format&fit=crop&q=60';
+    }
+    if (id.includes('deepseek')) {
+      return 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=40&auto=format&fit=crop&q=60';
+    }
+    return null;
+  };
+
+  // Resolve active model and its icon for the streaming/thinking bubble
+  const activeModel = settings && chats && activeChatId ? getActiveModel(settings, chats, activeChatId) : null;
+  const modelIconUrl = activeModel ? getModelIconUrl(activeModel) : null;
+  const modelName = activeModel?.name || activeModel?.id || 'Assistant';
+
   return (
     <div className="flex-1 min-h-0 relative flex flex-col">
       <div 
@@ -70,7 +103,8 @@ export default function MessageList({ messages, urlMap, streamingText, onEditMes
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto"
       >
-        <div className="mx-auto max-w-3xl space-y-6 p-4 pb-8">
+        {/* Increased bottom padding to pb-16 to leave a clean gap before the bottom input bar */}
+        <div className="mx-auto max-w-5xl space-y-6 p-4 pb-16">
           {messages.map((m) => (
             <MessageBubble
               key={m.id}
@@ -78,23 +112,47 @@ export default function MessageList({ messages, urlMap, streamingText, onEditMes
               urlMap={urlMap}
               onEdit={onEditMessage}
               onRegenerate={onRegenerate}
+              settings={settings}
+              chats={chats}
+              activeChatId={activeChatId}
             />
           ))}
 
           {streamingText !== null && (
-            <div className="flex gap-3">
-              <div
-                className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center mt-1"
-                style={{
-                  background: 'var(--color-surface-hover)',
-                  color: 'var(--color-text-faint)',
-                }}
-              >
-                <Bot size={14} />
-              </div>
-              <div className="max-w-[85%] md:max-w-[75%]">
+            <div className="flex gap-3 w-full">
+              {/* Streaming Avatar with Tooltip */}
+              <div className="relative group shrink-0 mt-1">
                 <div
-                  className="rounded-2xl px-4 py-3 text-sm leading-relaxed overflow-x-auto"
+                  className="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden"
+                  style={{
+                    background: 'var(--color-surface-hover)',
+                    color: 'var(--color-text-faint)',
+                  }}
+                >
+                  {modelIconUrl ? (
+                    <img 
+                      src={modelIconUrl} 
+                      alt="" 
+                      className="w-full h-full object-cover" 
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  ) : activeModel ? (
+                    <Sparkles size={14} className="text-amber-500" />
+                  ) : (
+                    <Bot size={14} />
+                  )}
+                </div>
+
+                {/* Model Tooltip */}
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-50 bg-neutral-900 text-neutral-100 text-[10px] font-medium px-2 py-1 rounded shadow-lg border border-neutral-800 whitespace-nowrap">
+                  {modelName}
+                </div>
+              </div>
+
+              {/* Increased width threshold for streaming bubble */}
+              <div className="w-full max-w-[95%] md:max-w-[92%]">
+                <div
+                  className="w-full rounded-2xl px-4 py-3 text-sm leading-relaxed overflow-x-auto"
                   style={{
                     background: 'var(--color-surface-alt)',
                     color: 'var(--color-text)',

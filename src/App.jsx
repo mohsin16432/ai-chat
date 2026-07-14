@@ -588,6 +588,9 @@ export default function App() {
                 streamingText={streamingText}
                 onEditMessage={handleEditMessage}
                 onRegenerate={handleRegenerate}
+                settings={settings}
+                chats={chats}
+                activeChatId={activeChatId}
               />
 
               {error && (
