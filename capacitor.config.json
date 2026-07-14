@@ -1,5 +1,10 @@
 {
   "appId": "com.mohsinmustufa.aichat",
   "appName": "AI Chat",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
 }
