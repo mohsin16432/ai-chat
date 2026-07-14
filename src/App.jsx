@@ -40,6 +40,41 @@ export default function App() {
 
   const { settings, updateSettings } = useSettings();
 
+  // --- PERSISTENCE & DEFAULT CLEANUP LOGIC ---
+  // If your useSettings hook initializes with 2 default models, we intercept and sanitize them here.
+  // We also ensure that settings are saved to localStorage whenever they change.
+  useEffect(() => {
+    if (settings) {
+      const storedSettings = localStorage.getItem('app_settings');
+      if (!storedSettings) {
+        // First time initialization: force empty models instead of showing 2 default models
+        updateSettings({
+          ...settings,
+          models: [],
+          defaultModelId: ''
+        });
+        localStorage.setItem('app_settings', JSON.stringify({ ...settings, models: [], defaultModelId: '' }));
+      } else {
+        // If settings exist in localStorage, ensure they are synchronized
+        try {
+          const parsed = JSON.parse(storedSettings);
+          // If the in-memory settings mismatch the stored settings, sync them
+          if (JSON.stringify(parsed.models) !== JSON.stringify(settings.models)) {
+            updateSettings(parsed);
+          }
+        } catch (e) {
+          console.error("Failed to parse stored settings", e);
+        }
+      }
+    }
+  }, []);
+
+  // Intercept updateSettings to write directly to localStorage for instant, bulletproof persistence
+  const handleUpdateSettings = (newSettings) => {
+    updateSettings(newSettings);
+    localStorage.setItem('app_settings', JSON.stringify(newSettings));
+  };
+
   const {
     chats, setChats,
     activeChatId, activeChatIdRef,
@@ -610,7 +645,7 @@ export default function App() {
       {showSettings && (
         <SettingsModal
           settings={settings}
-          onSave={updateSettings}
+          onSave={handleUpdateSettings}
           onClose={() => setShowSettings(false)}
         />
       )}

@@ -29,7 +29,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
   }
 
   // Handle Simulated CLI / URL Installs
-    async function handleCliInstall(e) {
+  async function handleCliInstall(e) {
     e.preventDefault();
     const command = cliInput.trim();
     if (!command || isInstalling) return;
@@ -242,6 +242,8 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                 models={draft.models}
                 defaultModelId={draft.defaultModelId}
                 onUpdate={handleModelsUpdate}
+                baseUrl={draft.baseUrl}
+                apiKey={draft.apiKey}
               />
             </>
           ) : (
