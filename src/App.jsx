@@ -309,7 +309,7 @@ export default function App() {
 
       const { data: aMsg, error: aErr } = await supabase
         .from('messages')
-        .insert({ chat_id: chatId, role: 'assistant', content: full })
+        .insert({ chat_id: chatId, role: 'assistant', content: full, model: activeModel.id })
         .select()
         .single();
       if (aErr) throw new Error(aErr.message);
@@ -321,7 +321,7 @@ export default function App() {
           try {
             const { data: aMsg } = await supabase
               .from('messages')
-              .insert({ chat_id: chatId, role: 'assistant', content: partial })
+              .insert({ chat_id: chatId, role: 'assistant', content: partial, model: activeModel.id })
               .select()
               .single();
             if (aMsg) appendMessage(chatId, aMsg, activeChatIdRef);
@@ -503,10 +503,12 @@ export default function App() {
       console.log('%cFormatted Messages Payload Array:', 'color: #a3a3a3;', llmMessages);
       console.groupEnd();
 
+      const sentModelId = currentModel?.id || settings.defaultModelId;
+
       const full = await streamChat({
         baseUrl: settings.baseUrl,
         apiKey: settings.apiKey,
-        model: currentModel?.id || settings.defaultModelId,
+        model: sentModelId,
         messages: llmMessages,
         onToken: handleToken,
         temperature: currentChat?.temperature ?? undefined,
@@ -516,7 +518,7 @@ export default function App() {
 
       const { data: aMsg, error: aErr } = await supabase
         .from('messages')
-        .insert({ chat_id: chatId, role: 'assistant', content: full })
+        .insert({ chat_id: chatId, role: 'assistant', content: full, model: sentModelId })
         .select()
         .single();
       if (aErr) throw new Error(aErr.message);
@@ -530,7 +532,7 @@ export default function App() {
           try {
             const { data: aMsg } = await supabase
               .from('messages')
-              .insert({ chat_id: activeChatId, role: 'assistant', content: partial })
+              .insert({ chat_id: activeChatId, role: 'assistant', content: partial, model: sentModelId })
               .select()
               .single();
             if (aMsg) appendMessage(activeChatId, aMsg, activeChatIdRef);

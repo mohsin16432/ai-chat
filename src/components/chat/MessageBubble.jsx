@@ -29,21 +29,18 @@ export default function MessageBubble({
   const [copied, setCopied] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  // 1. Find the active chat and get the active model configured for it
+  // 1. Resolve the model that actually generated THIS message (stored on the message row).
+  //    Only fall back to the chat's current model for legacy messages saved before the
+  //    `model` column existed — so switching models never rewrites history.
   const activeChat = chats?.find(c => c.id === activeChatId);
-  const activeModel = activeChat?.model || settings?.activeModel;
+  const fallbackModelId = activeChat?.model || settings?.defaultModelId || settings?.activeModel;
 
-  // 2. Resolve the model: 
-  // - First, try any saved model identifiers on the message itself.
-  // - If none exist (which is common during and immediately after streaming), 
-  //   fall back directly to the active model of the chat.
-  // - Only use 'Assistant' as a last resort if no active model is found.
   const resolvedModel = 
     message.modelUsed || 
     message.model || 
     message.model_name ||
     message.modelId ||
-    activeModel || 
+    fallbackModelId || 
     'Assistant';
 
   const isModelObject = resolvedModel && typeof resolvedModel === 'object';
@@ -112,8 +109,10 @@ export default function MessageBubble({
     if (idLower.includes('deepseek')) {
       return 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=80&auto=format&fit=crop&q=60';
     }
+    if (idLower.includes('llama') || idLower.includes('meta')) {
+      return 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=80&auto=format&fit=crop&q=60';
+    }
     if (
-      idLower.includes('llama') || 
       idLower.includes('ollama') || 
       idLower.includes('mistral') || 
       idLower.includes('phi') || 
@@ -153,7 +152,7 @@ export default function MessageBubble({
   };
 
   return (
-    <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`group flex w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div className={`flex gap-3 max-w-[85%] md:max-w-[75%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
         
         {/* Avatar */}
@@ -329,9 +328,13 @@ export default function MessageBubble({
             )}
           </div>
 
-          {/* Action Toolbar */}
+          {/* Action Toolbar — always visible on assistant replies, hover-reveal for user messages on desktop */}
           <div 
-            className="flex items-center gap-2 text-xs opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity mt-1"
+            className={`flex items-center gap-2 text-xs mt-1 ${
+              isUser
+                ? 'opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity'
+                : 'opacity-100'
+            }`}
             style={{ 
               color: 'var(--color-text-faint)',
               justifyContent: isUser ? 'flex-end' : 'flex-start'
