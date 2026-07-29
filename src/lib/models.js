@@ -1,3 +1,5 @@
+import { proxyFetch } from './proxy';
+
 export function getModelById(settings, id) {
   return settings.models.find((m) => m.id === id) || null;
 }
@@ -60,15 +62,15 @@ export function autoDetectCapabilities(modelId) {
   };
 }
 
-export async function discoverModels(baseUrl, apiKey) {
+export async function discoverModels(baseUrl, apiKey, proxySettings) {
   const cleanUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  const response = await fetch(`${cleanUrl}/models`, {
+  const response = await proxyFetch(`${cleanUrl}/models`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json'
     }
-  });
+  }, proxySettings);
 
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);

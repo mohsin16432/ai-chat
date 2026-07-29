@@ -1,4 +1,6 @@
-export async function streamChat({ baseUrl, apiKey, model, messages, onToken, signal, temperature, top_p }) {
+import { proxyFetch } from './proxy';
+
+export async function streamChat({ baseUrl, apiKey, model, messages, onToken, signal, temperature, top_p, proxySettings }) {
   const payload = {
     model,
     stream: true,
@@ -26,8 +28,11 @@ export async function streamChat({ baseUrl, apiKey, model, messages, onToken, si
   if (top_p !== undefined && top_p !== null) {
     payload.top_p = top_p;
   }
+  console.time("LLM");
+  const start = performance.now();
 
-  const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/chat/completions`, {
+
+  const res = await proxyFetch(`${baseUrl.replace(/\/+$/, '')}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -35,7 +40,16 @@ export async function streamChat({ baseUrl, apiKey, model, messages, onToken, si
     },
     body: JSON.stringify(payload),
     signal,
-  });
+  }, proxySettings);
+
+  console.log(
+  "Headers:",
+  performance.now() - start
+  );
+
+  let firstTokenSeen = false;
+
+  console.timeEnd("LLM");
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -62,6 +76,13 @@ export async function streamChat({ baseUrl, apiKey, model, messages, onToken, si
         const json = JSON.parse(data);
         const delta = json.choices?.[0]?.delta?.content;
         if (delta) {
+          if (!firstTokenSeen) {
+          console.log(
+            "First token:",
+            performance.now() - start
+          );
+          firstTokenSeen = true;
+  }
           full += delta;
           onToken(full);
         }

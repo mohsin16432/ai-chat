@@ -175,6 +175,7 @@ export default function App() {
           { role: 'user', content: titlePrompt },
         ],
         onToken: () => {},
+        proxySettings: settings,
       });
 
       const trimmedTitle = title.trim().replace(/^["']|["']$/g, '');
@@ -305,6 +306,7 @@ export default function App() {
         temperature: currentChat?.temperature ?? undefined,
         top_p: currentChat?.top_p ?? undefined,
         signal,
+        proxySettings: settings,
       });
 
       const { data: aMsg, error: aErr } = await supabase
@@ -367,7 +369,8 @@ export default function App() {
           const results = await performWebSearch(
             text, 
             settings.searchProvider || 'duckduckgo', 
-            settings.searchApiKey
+            settings.searchApiKey,
+            settings
           );
           
           if (results && results.length > 0) {
@@ -514,6 +517,7 @@ export default function App() {
         temperature: currentChat?.temperature ?? undefined,
         top_p: currentChat?.top_p ?? undefined,
         signal,
+        proxySettings: settings,
       });
 
       const { data: aMsg, error: aErr } = await supabase

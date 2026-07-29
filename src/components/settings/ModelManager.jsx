@@ -3,7 +3,7 @@ import { Trash2, Plus, Star, RefreshCw, AlertTriangle, Trash } from 'lucide-reac
 import { CAPABILITY_KEYS, CAPABILITY_LABELS, CAPABILITY_ICONS, makeModel } from '../../lib/settings';
 import { discoverModels } from '../../lib/models';
 
-export default function ModelManager({ models, defaultModelId, onUpdate, baseUrl, apiKey }) {
+export default function ModelManager({ models, defaultModelId, onUpdate, baseUrl, apiKey, proxySettings }) {
   const [newModelId, setNewModelId] = useState('');
   const [newModelName, setNewModelName] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -30,7 +30,7 @@ export default function ModelManager({ models, defaultModelId, onUpdate, baseUrl
     setDiscoveryError('');
     setIsDiscovering(true);
     try {
-      const discovered = await discoverModels(baseUrl, apiKey);
+      const discovered = await discoverModels(baseUrl, apiKey, proxySettings);
       if (discovered.length === 0) {
         throw new Error('No models returned from provider.');
       }

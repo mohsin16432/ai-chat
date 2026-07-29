@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Settings, Terminal, Upload, Trash2, ShieldAlert, Loader2, Play } from 'lucide-react';
 import ModelManager from './ModelManager';
 import { loadSkills, saveCustomSkill, saveCustomSkills, deleteCustomSkill, parseMarkdownSkill, parseZipFile, downloadSkillFromRemote } from '../../lib/skills';
+import { DEFAULT_PROXY_URL } from '../../lib/settings';
 
 export default function SettingsModal({ settings, onSave, onClose }) {
   const [activeTab, setActiveTab] = useState('general'); // 'general' | 'skills'
@@ -18,6 +19,8 @@ export default function SettingsModal({ settings, onSave, onClose }) {
     models: settings.models || [],
     searchProvider: settings.searchProvider || 'duckduckgo',
     searchApiKey: settings.searchApiKey || '',
+    proxyEnabled: !!settings.proxyEnabled,
+    proxyUrl: settings.proxyUrl || DEFAULT_PROXY_URL,
   });
 
   useEffect(() => {
@@ -39,7 +42,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
     setIsInstalling(true);
 
     try {
-      const parsedSkills = await downloadSkillFromRemote(command);
+      const parsedSkills = await downloadSkillFromRemote(command, draft);
       
       // Handle both single skill and bulk install arrays
       if (Array.isArray(parsedSkills) && parsedSkills.length > 1) {
@@ -185,6 +188,58 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                     }}
                   />
                 </label>
+                <div
+                  className="rounded-xl p-3 space-y-3"
+                  style={{
+                    background: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
+                  }}
+                >
+                  <label className="flex items-center justify-between gap-3 cursor-pointer">
+                    <div>
+                      <div className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                        Proxy requests through worker
+                      </div>
+                      <div className="text-[11px]" style={{ color: 'var(--color-text-faint)' }}>
+                        Routes app network requests through the configured proxy to avoid CORS issues.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDraft({ ...draft, proxyEnabled: !draft.proxyEnabled })}
+                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+                      style={{
+                        background: draft.proxyEnabled ? 'var(--color-accent)' : 'var(--color-border-light)',
+                      }}
+                      aria-pressed={draft.proxyEnabled}
+                      title="Toggle proxy routing"
+                    >
+                      <span
+                        className="inline-block h-5 w-5 transform rounded-full bg-white transition-transform"
+                        style={{
+                          transform: draft.proxyEnabled ? 'translateX(22px)' : 'translateX(2px)',
+                        }}
+                      />
+                    </button>
+                  </label>
+
+                  {draft.proxyEnabled && (
+                    <label className="block text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                      Proxy URL
+                      <input
+                        value={draft.proxyUrl}
+                        onChange={(e) => setDraft({ ...draft, proxyUrl: e.target.value })}
+                        placeholder={DEFAULT_PROXY_URL}
+                        className="mt-1 w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-colors"
+                        style={{
+                          background: 'var(--color-surface-alt)',
+                          color: 'var(--color-text)',
+                          border: '1px solid var(--color-border)',
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
               </div>
 
               {/* Divider */}
@@ -244,6 +299,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                 onUpdate={handleModelsUpdate}
                 baseUrl={draft.baseUrl}
                 apiKey={draft.apiKey}
+                proxySettings={draft}
               />
             </>
           ) : (

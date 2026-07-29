@@ -3,8 +3,10 @@
  * (Google News RSS Feed & Wikipedia Factual Engines).
  */
 
-async function searchTavily(query, apiKey) {
-  const response = await fetch('https://api.tavily.com/search', {
+import { proxyFetch } from './proxy';
+
+async function searchTavily(query, apiKey, proxySettings) {
+  const response = await proxyFetch('https://api.tavily.com/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -13,7 +15,7 @@ async function searchTavily(query, apiKey) {
       search_depth: 'basic',
       max_results: 5
     })
-  });
+  }, proxySettings);
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.detail || 'Tavily Search API failed');
@@ -26,15 +28,15 @@ async function searchTavily(query, apiKey) {
   }));
 }
 
-async function searchSerper(query, apiKey) {
-  const response = await fetch('https://google.serper.dev/search', {
+async function searchSerper(query, apiKey, proxySettings) {
+  const response = await proxyFetch('https://google.serper.dev/search', {
     method: 'POST',
     headers: {
       'X-API-KEY': apiKey,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ q: query, num: 5 })
-  });
+  }, proxySettings);
   if (!response.ok) {
     throw new Error('Google Serper Search API failed');
   }
@@ -51,14 +53,14 @@ async function searchSerper(query, apiKey) {
  * Bypasses bot captchas by parsing Google's lightweight XML feed.
  * Provides live breaking headlines, source names, and verified reference URLs.
  */
-async function searchGoogleNewsRSS(query) {
+async function searchGoogleNewsRSS(query, proxySettings) {
   console.log('%c📰 Fetching Live Headlines via Google News RSS Engine...', 'color: #3b82f6; font-weight: bold;');
   const targetUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
   
   // Use AllOrigins with raw parsing to bypass CORS safely
   const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
   
-  const response = await fetch(proxyUrl);
+  const response = await proxyFetch(proxyUrl, {}, proxySettings);
   if (!response.ok) throw new Error('Google News RSS stream failed');
   const xmlText = await response.text();
   
@@ -92,11 +94,11 @@ async function searchGoogleNewsRSS(query) {
  * 100% stable, supports CORS natively, and never rate-limits.
  * Provides deep context blocks for concepts, places, organizations, and historical events.
  */
-async function searchWikipedia(query) {
+async function searchWikipedia(query, proxySettings) {
   console.log('%c📖 Fetching Context via Wikipedia Factual Engine...', 'color: #10b981; font-weight: bold;');
   const url = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
   
-  const response = await fetch(url);
+  const response = await proxyFetch(url, {}, proxySettings);
   if (!response.ok) throw new Error('Wikipedia search failed');
   const data = await response.json();
   
@@ -110,13 +112,13 @@ async function searchWikipedia(query) {
 /**
  * Aggregates real-time news and factual articles into a unified search context
  */
-async function searchFreeMultiChannel(query) {
+async function searchFreeMultiChannel(query, proxySettings) {
   const aggregatedResults = [];
   
   // Execute both channels in parallel to keep searches lightning-fast
   const outcomes = await Promise.allSettled([
-    searchGoogleNewsRSS(query),
-    searchWikipedia(query)
+    searchGoogleNewsRSS(query, proxySettings),
+    searchWikipedia(query, proxySettings)
   ]);
   
   outcomes.forEach((outcome) => {
@@ -128,21 +130,21 @@ async function searchFreeMultiChannel(query) {
   return aggregatedResults.slice(0, 6); // Limit to top 6 relevant results
 }
 
-export async function performWebSearch(query, provider, apiKey) {
+export async function performWebSearch(query, provider, apiKey, proxySettings) {
   const trimmed = query.trim();
   if (!trimmed) return [];
 
   try {
     if (provider === 'tavily' && apiKey) {
-      return await searchTavily(trimmed, apiKey);
+      return await searchTavily(trimmed, apiKey, proxySettings);
     }
     if (provider === 'serper' && apiKey) {
-      return await searchSerper(trimmed, apiKey);
+      return await searchSerper(trimmed, apiKey, proxySettings);
     }
     // Zero-Config Free Aggregator (Google News RSS + Wikipedia)
-    return await searchFreeMultiChannel(trimmed);
+    return await searchFreeMultiChannel(trimmed, proxySettings);
   } catch (err) {
     console.warn('Configured search API failed, falling back to free search aggregator...', err);
-    return await searchFreeMultiChannel(trimmed).catch(() => []);
+    return await searchFreeMultiChannel(trimmed, proxySettings).catch(() => []);
   }
 }

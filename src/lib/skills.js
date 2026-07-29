@@ -1,3 +1,5 @@
+import { proxyFetch } from './proxy';
+
 // Default pre-installed system skills
 export const DEFAULT_SKILLS = [
   {
@@ -109,9 +111,9 @@ export function parseMarkdownSkill(text, filename = '') {
 /**
  * Fetch raw text from a URL, returns null on failure (used for path probing).
  */
-async function tryFetch(url) {
+async function tryFetch(url, proxySettings) {
   try {
-    const res = await fetch(url);
+    const res = await proxyFetch(url, {}, proxySettings);
     if (!res.ok) return null;
     return await res.text();
   } catch {
@@ -122,9 +124,9 @@ async function tryFetch(url) {
 /**
  * Use GitHub Contents API to list directory contents.
  */
-async function listGitHubDir(owner, repo, path = '') {
+async function listGitHubDir(owner, repo, path = '', proxySettings) {
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-  const res = await fetch(url);
+  const res = await proxyFetch(url, {}, proxySettings);
   if (!res.ok) return [];
   return await res.json();
 }
@@ -132,16 +134,16 @@ async function listGitHubDir(owner, repo, path = '') {
 /**
  * Recursively discover all .md skill files inside a GitHub repo directory.
  */
-async function discoverSkillFiles(owner, repo, dirPath, depth = 0) {
+async function discoverSkillFiles(owner, repo, dirPath, depth = 0, proxySettings) {
   if (depth > 3) return []; // Prevent infinite recursion
-  const items = await listGitHubDir(owner, repo, dirPath);
+  const items = await listGitHubDir(owner, repo, dirPath, proxySettings);
   const results = [];
 
   for (const item of items) {
     if (item.type === 'file' && item.name.toLowerCase().endsWith('.md')) {
       results.push({ name: item.name, downloadUrl: item.download_url, path: item.path });
     } else if (item.type === 'dir') {
-      const nested = await discoverSkillFiles(owner, repo, item.path, depth + 1);
+      const nested = await discoverSkillFiles(owner, repo, item.path, depth + 1, proxySettings);
       results.push(...nested);
     }
   }
@@ -151,7 +153,7 @@ async function discoverSkillFiles(owner, repo, dirPath, depth = 0) {
 /**
  * Main remote installer. Returns an array of parsed skills.
  */
-export async function downloadSkillFromRemote(inputString) {
+export async function downloadSkillFromRemote(inputString, proxySettings) {
   const cleanInput = inputString.trim();
   let owner = '';
   let repo = '';
@@ -190,7 +192,7 @@ export async function downloadSkillFromRemote(inputString) {
 
   // Direct URL fetch
   if (directRawUrl) {
-    const text = await tryFetch(directRawUrl);
+    const text = await tryFetch(directRawUrl, proxySettings);
     if (!text) throw new Error(`Failed to download: ${directRawUrl}`);
     const filename = directRawUrl.split('/').pop() || 'skill.md';
     return [parseMarkdownSkill(text, filename)];
@@ -216,7 +218,7 @@ export async function downloadSkillFromRemote(inputString) {
     for (const branch of branches) {
       for (const patternFn of patterns) {
         const url = patternFn(branch);
-        const text = await tryFetch(url);
+        const text = await tryFetch(url, proxySettings);
         if (text && text.includes('---')) {
           console.log(`%c✅ Found skill at: ${url}`, 'color: #10b981; font-weight: bold;');
           return [parseMarkdownSkill(text, `${skillName}.md`)];
@@ -232,7 +234,7 @@ export async function downloadSkillFromRemote(inputString) {
   // First, detect default branch
   let defaultBranch = 'main';
   try {
-    const repoInfo = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
+    const repoInfo = await proxyFetch(`https://api.github.com/repos/${owner}/${repo}`, {}, proxySettings);
     if (repoInfo.ok) {
       const info = await repoInfo.json();
       defaultBranch = info.default_branch || 'main';
@@ -240,7 +242,7 @@ export async function downloadSkillFromRemote(inputString) {
   } catch {}
 
   // Discover all .md files recursively
-  const allFiles = await discoverSkillFiles(owner, repo, '');
+  const allFiles = await discoverSkillFiles(owner, repo, '', 0, proxySettings);
   
   if (allFiles.length === 0) {
     throw new Error(`No Markdown skill files found in repository ${owner}/${repo}.`);
@@ -251,7 +253,7 @@ export async function downloadSkillFromRemote(inputString) {
   const parsedSkills = [];
   for (const file of allFiles) {
     try {
-      const text = await tryFetch(file.downloadUrl);
+      const text = await tryFetch(file.downloadUrl, proxySettings);
       if (text && text.includes('---')) {
         const skill = parseMarkdownSkill(text, file.name);
         parsedSkills.push(skill);

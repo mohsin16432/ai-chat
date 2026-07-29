@@ -14,6 +14,8 @@ export const CAPABILITY_ICONS = {
   speech: '🗣️'
 };
 
+export const DEFAULT_PROXY_URL = 'https://super-heart-b9af.mohsin-mustafa.workers.dev/';
+
 export function makeModel(id, name, capabilities = { text: true, vision: false, imageGen: false, speech: false }) {
   return { id, name, capabilities };
 }
@@ -27,6 +29,8 @@ const DEFAULT_SETTINGS = {
   models: [], // Start with an empty array as requested
   searchProvider: 'duckduckgo',
   searchApiKey: '',
+  proxyEnabled: false,
+  proxyUrl: DEFAULT_PROXY_URL,
 };
 
 /**
