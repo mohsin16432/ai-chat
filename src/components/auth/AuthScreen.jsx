@@ -25,12 +25,12 @@ export default function AuthScreen() {
   return (
     <div className="min-h-dvh flex items-center justify-center p-4" style={{ background: 'var(--color-surface)' }}>
       <div className="w-full max-w-sm">
-        {/* Logo / brand */}
+        {/* Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style={{ background: 'var(--color-accent-muted)' }}>
-            <span className="text-2xl">✦</span>
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-4" style={{ background: 'var(--color-accent-muted)' }}>
+            <span className="text-xl" style={{ color: 'var(--color-accent-hover)' }}>✦</span>
           </div>
-          <h1 className="text-xl font-semibold" style={{ color: 'var(--color-text)' }}>AI Chat</h1>
+          <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--color-text)' }}>AI Chat</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--color-text-faint)' }}>Your personal assistant</p>
         </div>
 
@@ -47,11 +47,7 @@ export default function AuthScreen() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-colors"
-              style={{
-                background: 'var(--color-surface)',
-                color: 'var(--color-text)',
-                border: '1px solid var(--color-border)',
-              }}
+              style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
             />
             <input
               type="password"
@@ -60,11 +56,7 @@ export default function AuthScreen() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-colors"
-              style={{
-                background: 'var(--color-surface)',
-                color: 'var(--color-text)',
-                border: '1px solid var(--color-border)',
-              }}
+              style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
             />
           </div>
 
@@ -76,7 +68,7 @@ export default function AuthScreen() {
 
           <button
             disabled={busy}
-            className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium text-white transition-colors disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium text-white transition-opacity disabled:opacity-50"
             style={{ background: 'var(--color-accent)' }}
           >
             {busy ? (

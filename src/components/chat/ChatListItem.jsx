@@ -33,9 +33,9 @@ export default function ChatListItem({ chat, isActive, onSelect, onRename, onDel
   return (
     <div
       onClick={() => !editing && onSelect(chat.id)}
-      className="group flex items-center gap-2.5 rounded-xl px-3 py-2.5 cursor-pointer transition-colors"
+      className="group flex items-center gap-2.5 rounded-lg px-3 py-2 cursor-pointer transition-colors"
       style={{
-        background: isActive ? 'var(--color-surface-active)' : 'transparent',
+        background: isActive ? 'var(--color-surface-hover)' : 'transparent',
       }}
       onMouseEnter={(e) => {
         if (!isActive) e.currentTarget.style.background = 'var(--color-surface-hover)';
@@ -53,18 +53,11 @@ export default function ChatListItem({ chat, isActive, onSelect, onRename, onDel
             onBlur={commit}
             onKeyDown={(e) => {
               if (e.key === 'Enter') commit();
-              if (e.key === 'Escape') {
-                setDraft(chat.title);
-                setEditing(false);
-              }
+              if (e.key === 'Escape') { setDraft(chat.title); setEditing(false); }
             }}
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 rounded-lg px-2 py-1 text-sm outline-none"
-            style={{
-              background: 'var(--color-surface)',
-              color: 'var(--color-text)',
-              border: '1px solid var(--color-accent)',
-            }}
+            className="flex-1 rounded-md px-2 py-1 text-sm outline-none"
+            style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-accent)' }}
           />
           <button onClick={commit} className="p-0.5" style={{ color: 'var(--color-accent)' }}>
             <Check size={14} />
@@ -72,7 +65,7 @@ export default function ChatListItem({ chat, isActive, onSelect, onRename, onDel
         </div>
       ) : (
         <>
-          <MessageSquare size={15} style={{ color: 'var(--color-text-faint)' }} className="shrink-0" />
+          <MessageSquare size={14} style={{ color: 'var(--color-text-faint)' }} className="shrink-0" />
           <span
             className="flex-1 truncate text-sm"
             style={{ color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)' }}
@@ -85,15 +78,12 @@ export default function ChatListItem({ chat, isActive, onSelect, onRename, onDel
             }`}
           >
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditing(true);
-              }}
+              onClick={(e) => { e.stopPropagation(); setEditing(true); }}
               className="p-1 rounded-md transition-colors"
               style={{ color: 'var(--color-text-faint)' }}
               title="Rename"
             >
-              <Pencil size={13} />
+              <Pencil size={12} />
             </button>
             <button
               onClick={handleDeleteClick}
@@ -104,7 +94,7 @@ export default function ChatListItem({ chat, isActive, onSelect, onRename, onDel
               }}
               title={isConfirmingDelete ? 'Click again to confirm' : 'Delete'}
             >
-              <Trash2 size={13} />
+              <Trash2 size={12} />
             </button>
           </div>
         </>

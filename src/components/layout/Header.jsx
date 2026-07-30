@@ -8,10 +8,7 @@ export default function Header({ settings, chats, activeChatId, messages, onChan
   return (
     <div
       className="flex items-center justify-between px-4 py-2.5 shrink-0"
-      style={{
-        borderBottom: '1px solid var(--color-border)',
-        background: 'var(--color-surface)',
-      }}
+      style={{ background: 'var(--color-surface)' }}
     >
       <div className="flex items-center gap-3 min-w-0">
         <button
@@ -23,7 +20,7 @@ export default function Header({ settings, chats, activeChatId, messages, onChan
         </button>
         <h2
           className="text-sm font-medium truncate"
-          style={{ color: 'var(--color-text)' }}
+          style={{ color: 'var(--color-text-muted)' }}
         >
           {activeChat?.title || 'New conversation'}
         </h2>

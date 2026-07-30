@@ -5,38 +5,30 @@ import { parseDocument } from '../../lib/documentParser';
 
 export default function ChatInput({ onSend, sending, disabled, onCancel }) {
   const [input, setInput] = useState('');
-  const [files, setFiles] = useState([]); // Will store { type: 'image'|'document', file: File, previewUrl?: string, parsedText?: string }
+  const [files, setFiles] = useState([]);
   const [parsingFile, setParsingFile] = useState(false);
   const [skills, setSkills] = useState([]);
   const [filteredSkills, setFilteredSkills] = useState([]);
   const [showCommands, setShowCommands] = useState(false);
   const [selectedSkillIndex, setSelectedSkillIndex] = useState(0);
   const [activeSkill, setActiveSkill] = useState(null);
-  const [webSearchActive, setWebSearchActive] = useState(false); // Web Search state toggle
+  const [webSearchActive, setWebSearchActive] = useState(false);
 
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const commandMenuRef = useRef(null);
 
-  // Load skills initially and subscribe to updates
   useEffect(() => {
     setSkills(loadSkills());
-
-    const handleSkillsChange = () => {
-      setSkills(loadSkills());
-    };
-
+    const handleSkillsChange = () => setSkills(loadSkills());
     window.addEventListener('skills-changed', handleSkillsChange);
-    return () => {
-      window.removeEventListener('skills-changed', handleSkillsChange);
-    };
+    return () => window.removeEventListener('skills-changed', handleSkillsChange);
   }, []);
 
   function handleInputFocus() {
     setSkills(loadSkills());
   }
 
-  // Filter skills list as the user types
   useEffect(() => {
     const lastWord = input.split(/\s+/).pop() || '';
     if (lastWord.startsWith('/')) {
@@ -53,36 +45,22 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
     }
   }, [input, skills]);
 
-  // Handle uploading and parsing files client-side
   async function handleFileChange(e) {
     const uploadedFiles = Array.from(e.target.files || []);
-    e.target.value = ''; // Reset file input path
+    e.target.value = '';
     if (uploadedFiles.length === 0) return;
 
     setParsingFile(true);
     const newFiles = [...files];
 
     for (const file of uploadedFiles) {
-      const filename = file.name.toLowerCase();
       const isImage = file.type.startsWith('image/');
-
       if (isImage) {
-        newFiles.push({
-          type: 'image',
-          file: file,
-          name: file.name,
-          previewUrl: URL.createObjectURL(file)
-        });
+        newFiles.push({ type: 'image', file: file, name: file.name, previewUrl: URL.createObjectURL(file) });
       } else {
-        // Document parser execution route
         try {
           const parsedText = await parseDocument(file);
-          newFiles.push({
-            type: 'document',
-            file: file,
-            name: file.name,
-            parsedText: parsedText
-          });
+          newFiles.push({ type: 'document', file: file, name: file.name, parsedText: parsedText });
         } catch (err) {
           console.warn('Document extraction failed:', err);
           alert(`Could not read document contents for ${file.name}: ${err.message || err}`);
@@ -99,24 +77,19 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
     if ((!text && files.length === 0) || sending || parsingFile) return;
     
     const images = files.filter(f => f.type === 'image').map(f => f.file);
-    const documents = files.filter(f => f.type === 'document').map(f => ({
-      name: f.name,
-      content: f.parsedText
-    }));
+    const documents = files.filter(f => f.type === 'document').map(f => ({ name: f.name, content: f.parsedText }));
 
-    // Pass webSearchActive state parameter to App.jsx dispatch trigger
     onSend(text, images, activeSkill, documents, webSearchActive);
     setInput('');
     setFiles([]);
     setActiveSkill(null);
-    setWebSearchActive(false); // Reset search state once sent
+    setWebSearchActive(false);
   }
 
   const selectSkill = (skill) => {
     const words = input.split(/\s+/);
-    words.pop(); // Remove the "/command" chunk
+    words.pop();
     const baseText = words.join(' ');
-    
     setInput(baseText);
     setActiveSkill(skill);
     setShowCommands(false);
@@ -125,59 +98,31 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
 
   const handleKeyDown = (e) => {
     if (showCommands && filteredSkills.length > 0) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedSkillIndex(prev => (prev + 1) % filteredSkills.length);
-        return;
-      }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedSkillIndex(prev => (prev - 1 + filteredSkills.length) % filteredSkills.length);
-        return;
-      }
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        selectSkill(filteredSkills[selectedSkillIndex]);
-        return;
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setShowCommands(false);
-        return;
-      }
+      if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedSkillIndex(prev => (prev + 1) % filteredSkills.length); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedSkillIndex(prev => (prev - 1 + filteredSkills.length) % filteredSkills.length); return; }
+      if (e.key === 'Enter') { e.preventDefault(); selectSkill(filteredSkills[selectedSkillIndex]); return; }
+      if (e.key === 'Escape') { e.preventDefault(); setShowCommands(false); return; }
     }
   };
 
   const removeFile = (idxToRemove) => {
     const targetFile = files[idxToRemove];
-    if (targetFile.previewUrl) {
-      URL.revokeObjectURL(targetFile.previewUrl); // Prevent browser memory leaks
-    }
+    if (targetFile.previewUrl) URL.revokeObjectURL(targetFile.previewUrl);
     setFiles(files.filter((_, idx) => idx !== idxToRemove));
   };
 
   return (
-    /* Added top border, background color, and top padding to create a distinct bottom bar */
-    <div 
-      className="pb-safe relative pt-4 border-t"
-      style={{
-        background: 'var(--color-surface)',
-        borderColor: 'var(--color-border)',
-      }}
-    >
+    <div className="pb-safe relative px-4 pt-2" style={{ background: 'var(--color-surface)' }}>
       
-      {/* Floating command dropdown - updated to max-w-5xl */}
+      {/* Command dropdown */}
       {showCommands && (
         <div 
           ref={commandMenuRef}
-          className="mx-auto max-w-5xl left-4 right-4 absolute bottom-full mb-2 border rounded-2xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto z-50 transition-all"
-          style={{
-            background: 'var(--color-surface-alt)',
-            borderColor: 'var(--color-border)',
-          }}
+          className="mx-auto max-w-3xl left-4 right-4 absolute bottom-full mb-2 border rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto z-50 animate-fade-in"
+          style={{ background: 'var(--color-surface-alt)', borderColor: 'var(--color-border-light)' }}
         >
-          <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider border-b" style={{ color: 'var(--color-text-faint)', borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
-            Available Command Skills
+          <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider border-b" style={{ color: 'var(--color-text-faint)', borderColor: 'var(--color-border)' }}>
+            Commands
           </div>
           {filteredSkills.map((skill, index) => (
             <button
@@ -192,7 +137,7 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
               <Terminal size={16} className="mt-0.5" style={{ color: index === selectedSkillIndex ? 'var(--color-accent)' : 'var(--color-text-faint)' }} />
               <div className="flex-1">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>/{skill.command}</span>
+                  <span className="font-medium text-sm" style={{ color: 'var(--color-text)' }}>/{skill.command}</span>
                   <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-surface)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }}>
                     {skill.name}
                   </span>
@@ -204,37 +149,18 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
         </div>
       )}
 
-      {/* Files Previews & Metadata Tray - updated to max-w-5xl */}
+      {/* File previews */}
       {files.length > 0 && (
-        <div className="mx-auto max-w-5xl px-4 pb-2">
+        <div className="mx-auto max-w-3xl pb-2">
           <div className="flex gap-2 flex-wrap">
             {files.map((f, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs border"
-                style={{
-                  background: 'var(--color-surface-alt)',
-                  color: 'var(--color-text-muted)',
-                  borderColor: 'var(--color-border)',
-                }}
-              >
+              <div key={i} className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs" style={{ background: 'var(--color-surface-alt)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }}>
                 {f.type === 'image' ? (
-                  <>
-                    <ImagePlus size={12} style={{ color: 'var(--color-accent)' }} />
-                    <span className="truncate max-w-[120px]">{f.name}</span>
-                  </>
+                  <><ImagePlus size={12} style={{ color: 'var(--color-accent-hover)' }} /><span className="truncate max-w-[120px]">{f.name}</span></>
                 ) : (
-                  <>
-                    <FileText size={12} style={{ color: 'var(--color-success)' }} />
-                    <span className="truncate max-w-[150px] font-medium">{f.name}</span>
-                    <span className="text-[9px] px-1 py-0.2 rounded" style={{ background: 'rgba(34,197,94,0.15)', color: 'var(--color-success)' }}>READY</span>
-                  </>
+                  <><FileText size={12} style={{ color: 'var(--color-success)' }} /><span className="truncate max-w-[150px] font-medium">{f.name}</span><span className="text-[9px] px-1 py-0.2 rounded" style={{ background: 'rgba(34,197,94,0.15)', color: 'var(--color-success)' }}>READY</span></>
                 )}
-                <button
-                  onClick={() => removeFile(i)}
-                  className="p-0.5 rounded transition-colors hover:bg-[var(--color-surface-hover)]"
-                  style={{ color: 'var(--color-text-faint)' }}
-                >
+                <button onClick={() => removeFile(i)} className="p-0.5 rounded transition-colors hover:bg-[var(--color-surface-hover)]" style={{ color: 'var(--color-text-faint)' }}>
                   <X size={12} />
                 </button>
               </div>
@@ -243,76 +169,56 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
         </div>
       )}
 
-      {/* Parsing progress indicator - updated to max-w-5xl */}
+      {/* Parsing indicator */}
       {parsingFile && (
-        <div className="mx-auto max-w-5xl px-4 pb-2 flex items-center gap-2 text-xs" style={{ color: 'var(--color-accent)' }}>
+        <div className="mx-auto max-w-3xl pb-2 flex items-center gap-2 text-xs" style={{ color: 'var(--color-accent-hover)' }}>
           <Loader2 className="animate-spin" size={12} />
-          <span>Analyzing document contents client-side...</span>
+          <span>Analyzing document…</span>
         </div>
       )}
 
-      {/* Active Command Tag Indicator - updated to max-w-5xl */}
+      {/* Active skill tag */}
       {activeSkill && (
-        <div className="mx-auto max-w-5xl px-4 pb-2">
-          <div 
-            className="inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs border"
-            style={{
-              background: 'var(--color-accent-muted)',
-              color: 'var(--color-text)',
-              borderColor: 'var(--color-accent)',
-            }}
-          >
+        <div className="mx-auto max-w-3xl pb-2">
+          <div className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs" style={{ background: 'var(--color-accent-muted)', color: 'var(--color-text)', border: '1px solid var(--color-accent)' }}>
             <Terminal size={12} style={{ color: 'var(--color-accent)' }} />
-            <span>Active Command: <strong>/{activeSkill.command}</strong> ({activeSkill.name})</span>
-            <button
-              onClick={() => setActiveSkill(null)}
-              className="p-0.5 rounded transition-colors hover:bg-black/20"
-              title="Remove active skill"
-            >
+            <span>Active: <strong>/{activeSkill.command}</strong> ({activeSkill.name})</span>
+            <button onClick={() => setActiveSkill(null)} className="p-0.5 rounded transition-colors hover:bg-black/20" title="Remove">
               <X size={12} />
             </button>
           </div>
         </div>
       )}
 
-      {/* Input area - updated to max-w-5xl */}
-      <div className="mx-auto max-w-5xl px-4 pb-4">
+      {/* Input bar — floating pill, no top border */}
+      <div className="mx-auto max-w-3xl pb-4">
         <div
           className="flex items-end gap-2 rounded-2xl px-3 py-2"
           style={{
             background: 'var(--color-surface-alt)',
-            border: '1px solid var(--color-border)',
+            border: '1px solid var(--color-border-light)',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
           }}
         >
-          {/* Expanded file selector filter targets */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,.pdf,.csv,.json,.txt"
-            multiple
-            hidden
-            onChange={handleFileChange}
-          />
+          <input ref={fileInputRef} type="file" accept="image/*,.pdf,.csv,.json,.txt,.css,.html,.js,.ts,.jsx,.tsx,.py,.md,.xml,.svg" multiple hidden onChange={handleFileChange} />
 
-           <button
+          <button
             onClick={() => fileInputRef.current?.click()}
             className="shrink-0 p-2 rounded-xl transition-colors"
             style={{ color: 'var(--color-text-faint)' }}
-            title="Attach file (Image, PDF, CSV, JSON, TXT)"
+            title="Attach file"
             disabled={parsingFile}
           >
             <Paperclip size={18} />
           </button>
 
-          {/* Web Search Globe Toggle Button */}
           <button
             type="button"
             onClick={() => setWebSearchActive(!webSearchActive)}
             className="shrink-0 p-2 rounded-xl transition-all active:scale-95"
             style={{ 
               color: webSearchActive ? 'var(--color-accent-hover)' : 'var(--color-text-faint)',
-              background: webSearchActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-              border: webSearchActive ? '1px solid var(--color-accent)' : '1px solid transparent'
+              background: webSearchActive ? 'var(--color-accent-muted)' : 'transparent',
             }}
             title="Toggle Web Search"
           >
@@ -326,23 +232,16 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             onFocus={handleInputFocus}
-            placeholder="Message (type / for commands, attach file)..."
-            className="flex-1 resize-none bg-transparent py-2 text-sm outline-none animate-fade-in"
-            style={{
-              color: 'var(--color-text)',
-              maxHeight: '10rem',
-              minHeight: '1.5rem',
-            }}
+            placeholder="Send a message…"
+            className="flex-1 resize-none bg-transparent py-2 text-sm outline-none"
+            style={{ color: 'var(--color-text)', maxHeight: '10rem', minHeight: '1.5rem' }}
           />
 
           {sending ? (
             <button
               onClick={onCancel}
               className="shrink-0 p-2 rounded-xl transition-all active:scale-95"
-              style={{
-                background: 'var(--color-danger)',
-                color: 'white',
-              }}
+              style={{ background: 'var(--color-danger)', color: 'white' }}
               title="Stop generating"
             >
               <Square size={18} fill="white" />

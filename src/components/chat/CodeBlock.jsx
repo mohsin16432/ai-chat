@@ -28,7 +28,7 @@ function CodeFallback({ code }) {
       style={{
         margin: 0,
         padding: '1rem',
-        background: '#0d0d0d',
+        background: 'var(--color-surface)',
         lineHeight: '1.5',
         color: 'var(--color-text-muted)',
       }}
@@ -147,7 +147,7 @@ export default function CodeBlock({ language, children }) {
       </div>
 
       {/* Code content container with Suspense Fallback */}
-      <div className="overflow-x-auto bg-[#0d0d0d]">
+      <div className="overflow-x-auto" style={{ background: 'var(--color-surface)' }}>
         <Suspense fallback={<CodeFallback code={code} />}>
           <LazyHighlighter
             language={language || 'text'}
@@ -156,7 +156,7 @@ export default function CodeBlock({ language, children }) {
             customStyle={{
               margin: 0,
               padding: '1rem',
-              background: '#0d0d0d',
+              background: 'transparent',
               fontSize: '0.8rem',
               lineHeight: '1.5',
               borderRadius: 0,
