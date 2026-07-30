@@ -373,7 +373,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
 
               {/* Status Feedbacks */}
               {uploadError && (
-                <div className="rounded-xl px-4 py-3 text-xs flex gap-2 items-start" style={{ background: 'var(--color-danger-muted)', color: '#fca5a5' }}>
+                <div className="rounded-xl px-4 py-3 text-xs flex gap-2 items-start" style={{ background: 'var(--color-danger-muted)', color: 'var(--color-danger-text)' }}>
                   <ShieldAlert size={14} className="shrink-0 mt-0.5" />
                   <span>{uploadError}</span>
                 </div>

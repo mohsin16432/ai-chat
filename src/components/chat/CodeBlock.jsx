@@ -6,10 +6,10 @@ const LazyHighlighter = lazy(() =>
     import('react-syntax-highlighter'),
     import('react-syntax-highlighter/dist/esm/styles/prism')
   ]).then(([highlighterModule, styleIndex]) => ({
-    default: ({ language, showLineNumbers, code, customStyle, lineNumberStyle }) => (
+    default: ({ language, showLineNumbers, code, customStyle, lineNumberStyle, theme }) => (
       <highlighterModule.Prism
         language={language}
-        style={styleIndex.oneDark}
+        style={theme === 'light' ? styleIndex.oneLight : styleIndex.oneDark}
         showLineNumbers={showLineNumbers}
         customStyle={customStyle}
         lineNumberStyle={lineNumberStyle}
@@ -40,6 +40,7 @@ function CodeFallback({ code }) {
 
 export default function CodeBlock({ language, children }) {
   const [copied, setCopied] = useState(false);
+  const currentTheme = document.documentElement.dataset.theme || 'dark';
 
   const code = String(children).replace(/\n$/, '');
 
@@ -152,6 +153,7 @@ export default function CodeBlock({ language, children }) {
           <LazyHighlighter
             language={language || 'text'}
             code={code}
+            theme={currentTheme}
             showLineNumbers={code.split('\n').length > 3}
             customStyle={{
               margin: 0,
@@ -163,7 +165,7 @@ export default function CodeBlock({ language, children }) {
               minWidth: 'fit-content',
             }}
             lineNumberStyle={{
-              color: '#4a4a4a',
+              color: currentTheme === 'light' ? '#a1a1aa' : '#4a4a4a',
               fontSize: '0.75rem',
               paddingRight: '1rem',
               minWidth: '2rem',

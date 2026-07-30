@@ -113,6 +113,21 @@ export function useMessages() {
     if (activeChatIdRef.current === chatId) setMessages(updated);
   }
 
+   async function updateMessageFeedback(chatId, messageId, feedback, activeChatIdRef) {
+    const { error } = await supabase.from('messages').update({ feedback }).eq('id', messageId);
+    if (error) {
+      console.error('Failed to save feedback:', error);
+      return;
+    }
+
+    const cached = messagesCache.current.get(chatId) || [];
+    const updated = cached.map((m) =>
+      m.id === messageId ? { ...m, feedback } : m
+    );
+    messagesCache.current.set(chatId, updated);
+    if (activeChatIdRef.current === chatId) setMessages(updated);
+  }
+
   
 
   return {
@@ -130,5 +145,6 @@ export function useMessages() {
     removeChatFromCache,
     deleteMessagesAfter,
     updateMessage,
+    updateMessageFeedback,
   };
 }

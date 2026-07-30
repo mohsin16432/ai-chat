@@ -8,6 +8,7 @@ export default function Sidebar({
   onNewChat,
   onRenameChat,
   onDeleteChat,
+  onTogglePin,
   onOpenSettings,
   onSignOut,
   email,
@@ -85,6 +86,7 @@ export default function Sidebar({
               }}
               onRename={onRenameChat}
               onDelete={onDeleteChat}
+              onTogglePin={onTogglePin}
             />
           ))}
         </div>

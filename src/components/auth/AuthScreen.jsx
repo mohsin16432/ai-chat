@@ -61,7 +61,7 @@ export default function AuthScreen() {
           </div>
 
           {error && (
-            <div className="rounded-lg px-3 py-2 text-sm" style={{ background: 'var(--color-danger-muted)', color: '#fca5a5' }}>
+            <div className="rounded-lg px-3 py-2 text-sm" style={{ background: 'var(--color-danger-muted)', color: 'var(--color-danger-text)' }}>
               {error}
             </div>
           )}

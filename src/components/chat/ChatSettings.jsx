@@ -7,7 +7,7 @@ const DEFAULTS = {
   top_p: 1.0,
 };
 
-export default function ChatSettings({ chat, onUpdate, onClose }) {
+export default function ChatSettings({ chat, messages, onUpdate, onClose }) {
   const [draft, setDraft] = useState({
     system_prompt: chat?.system_prompt ?? DEFAULTS.system_prompt,
     temperature: chat?.temperature ?? DEFAULTS.temperature,
@@ -140,6 +140,38 @@ export default function ChatSettings({ chat, onUpdate, onClose }) {
             <span>Balanced (1)</span>
           </div>
         </div>
+
+        {/* Token Usage Summary */}
+        {messages && messages.length > 0 && (() => {
+          const totals = messages.reduce((acc, m) => {
+            if (m.usage) {
+              acc.prompt += m.usage.prompt_tokens || 0;
+              acc.completion += m.usage.completion_tokens || 0;
+            }
+            return acc;
+          }, { prompt: 0, completion: 0 });
+          const total = totals.prompt + totals.completion;
+          if (total === 0) return null;
+          return (
+            <div className="rounded-xl p-3 space-y-1.5" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+              <label className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
+                Token Usage
+              </label>
+              <div className="flex justify-between text-xs" style={{ color: 'var(--color-text-faint)' }}>
+                <span>Prompt</span>
+                <span className="font-mono">{totals.prompt.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-xs" style={{ color: 'var(--color-text-faint)' }}>
+                <span>Completion</span>
+                <span className="font-mono">{totals.completion.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-xs pt-1.5 border-t" style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)' }}>
+                <span className="font-medium">Total</span>
+                <span className="font-mono font-medium">{total.toLocaleString()}</span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Save */}
         <button

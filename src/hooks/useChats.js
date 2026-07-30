@@ -1,6 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
+// Pinned chats first, then newest first
+function sortChats(list) {
+  return [...list].sort(
+    (a, b) =>
+      ((b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)) ||
+      (new Date(b.created_at) - new Date(a.created_at))
+  );
+}
+
 export function useChats(session) {
   const [chats, setChats] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
@@ -13,7 +22,7 @@ export function useChats(session) {
       .from('chats')
       .select('*')
       .order('created_at', { ascending: false })
-      .then(({ data }) => setChats(data || []));
+      .then(({ data }) => setChats(sortChats(data || [])));
   }, [session]);
 
   async function createChat() {
@@ -39,9 +48,23 @@ export function useChats(session) {
   async function renameChat(chatId, newTitle) {
     const title = newTitle.trim();
     if (!title) return;
-    setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, title } : c)));
+    setChats((prev) => sortChats(prev.map((c) => (c.id === chatId ? { ...c, title } : c))));
     const { error: err } = await supabase.from('chats').update({ title }).eq('id', chatId);
     if (err) setError(`Rename failed: ${err.message}`);
+  }
+
+  function togglePin(chatId, pinned) {
+    setChats((prev) => sortChats(prev.map((c) => (c.id === chatId ? { ...c, pinned } : c))));
+    supabase
+      .from('chats')
+      .update({ pinned })
+      .eq('id', chatId)
+      .then(({ error: err }) => {
+        if (err) {
+          console.error('Pin failed:', err);
+          setError(`Pin failed: ${err.message}`);
+        }
+      });
   }
 
   async function deleteChat(chatId) {
@@ -130,6 +153,7 @@ export function useChats(session) {
     createChat,
     renameChat,
     deleteChat,
+    togglePin,
     updateChatModel,
     selectChat,
     updateChatSettings

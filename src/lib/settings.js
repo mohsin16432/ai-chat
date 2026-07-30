@@ -31,6 +31,7 @@ const DEFAULT_SETTINGS = {
   searchApiKey: '',
   proxyEnabled: false,
   proxyUrl: DEFAULT_PROXY_URL,
+  theme: 'dark',
 };
 
 /**

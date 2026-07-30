@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { SendHorizonal, Paperclip, X, ImagePlus, Square, Terminal, FileText, Loader2, Globe } from 'lucide-react';
+import { SendHorizonal, Paperclip, X, ImagePlus, Square, Terminal, FileText, Loader2, Globe, Mic, MicOff } from 'lucide-react';
 import { loadSkills } from '../../lib/skills';
 import { parseDocument } from '../../lib/documentParser';
+
+// Web Speech API support check
+const SpeechRecognition = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
 export default function ChatInput({ onSend, sending, disabled, onCancel }) {
   const [input, setInput] = useState('');
@@ -13,6 +16,9 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
   const [selectedSkillIndex, setSelectedSkillIndex] = useState(0);
   const [activeSkill, setActiveSkill] = useState(null);
   const [webSearchActive, setWebSearchActive] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+
+  const recognitionRef = useRef(null);
 
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
@@ -72,8 +78,40 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
     setParsingFile(false);
   }
 
+  function toggleMic() {
+    if (!SpeechRecognition) return;
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+    // Capture existing text as the base — everything new comes from speech
+    const baseText = input.replace(/\u200b/g, '').trim();
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    let finalTranscript = '';
+    recognition.onresult = (event) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+      const combined = finalTranscript + interim;
+      setInput(baseText + (baseText && combined ? ' ' : '') + combined);
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+    recognition.start();
+    recognitionRef.current = recognition;
+    setIsListening(true);
+  }
+
   function handleSend() {
-    const text = input.trim();
+    const text = input.replace(/\u200b/g, '').trim();
     if ((!text && files.length === 0) || sending || parsingFile) return;
     
     const images = files.filter(f => f.type === 'image').map(f => f.file);
@@ -224,6 +262,21 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
           >
             <Globe size={18} className={webSearchActive ? 'animate-pulse' : ''} />
           </button>
+
+          {SpeechRecognition && (
+            <button
+              type="button"
+              onClick={toggleMic}
+              className="shrink-0 p-2 rounded-xl transition-all active:scale-95"
+              style={{
+                color: isListening ? 'var(--color-danger)' : 'var(--color-text-faint)',
+                background: isListening ? 'var(--color-danger-muted)' : 'transparent',
+              }}
+              title={isListening ? 'Stop listening' : 'Voice input'}
+            >
+              {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+            </button>
+          )}
 
           <textarea
             ref={textareaRef}

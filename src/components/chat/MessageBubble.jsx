@@ -8,7 +8,11 @@ import {
   RotateCw, 
   CheckCheck, 
   FileText, 
-  Image as ImageIcon 
+  Image as ImageIcon,
+  ThumbsUp,
+  ThumbsDown,
+  Volume2,
+  Square
 } from 'lucide-react';
 import CodeBlock from './CodeBlock';
 
@@ -16,7 +20,8 @@ export default function MessageBubble({
   message, 
   urlMap, 
   onEdit, 
-  onRegenerate, 
+  onRegenerate,
+  onFeedback,
   settings, 
   chats, 
   activeChatId 
@@ -28,6 +33,29 @@ export default function MessageBubble({
   const [editContent, setEditContent] = useState(content);
   const [copied, setCopied] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const ttsSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
+
+  function toggleSpeak() {
+    if (!ttsSupported) return;
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+    // Strip markdown for cleaner speech
+    const plainText = (content || '')
+      .replace(/```[\s\S]*?```/g, ' code block ')
+      .replace(/[#*`_~\[\]()>|-]/g, '')
+      .replace(/\n+/g, '. ')
+      .trim();
+    const utterance = new SpeechSynthesisUtterance(plainText);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(utterance);
+    setIsSpeaking(true);
+  }
 
   // Resolve the model that actually generated THIS message
   const activeChat = chats?.find(c => c.id === activeChatId);
@@ -189,7 +217,7 @@ export default function MessageBubble({
                   color: 'var(--color-text)',
                 }}
               >
-                <div className="prose prose-sm prose-invert max-w-none">
+                <div className="prose prose-sm prose-chat max-w-none">
                   <ReactMarkdown
                     components={{
                       code({ node, className, children, ...props }) {
@@ -417,6 +445,41 @@ export default function MessageBubble({
               >
                 <RotateCw size={13} />
               </button>
+            )}
+            {onFeedback && (
+              <>
+                <button
+                  onClick={() => onFeedback(id, message.feedback === 'up' ? null : 'up')}
+                  className="p-1 rounded-md hover:bg-[var(--color-surface-hover)] transition-colors"
+                  style={{ color: message.feedback === 'up' ? 'var(--color-accent-hover)' : undefined }}
+                  title="Good response"
+                >
+                  <ThumbsUp size={13} />
+                </button>
+                <button
+                  onClick={() => onFeedback(id, message.feedback === 'down' ? null : 'down')}
+                  className="p-1 rounded-md hover:bg-[var(--color-surface-hover)] transition-colors"
+                  style={{ color: message.feedback === 'down' ? 'var(--color-accent-hover)' : undefined }}
+                  title="Bad response"
+                >
+                  <ThumbsDown size={13} />
+                </button>
+              </>
+            )}
+            {ttsSupported && (
+              <button
+                onClick={toggleSpeak}
+                className="p-1 rounded-md hover:bg-[var(--color-surface-hover)] transition-colors"
+                style={{ color: isSpeaking ? 'var(--color-accent-hover)' : undefined }}
+                title={isSpeaking ? 'Stop reading' : 'Read aloud'}
+              >
+                {isSpeaking ? <Square size={13} /> : <Volume2 size={13} />}
+              </button>
+            )}
+            {message.usage && (message.usage.prompt_tokens || message.usage.completion_tokens) && (
+              <span className="text-[10px] ml-1" style={{ color: 'var(--color-text-faint)' }} title={`Prompt: ${message.usage.prompt_tokens || 0} tokens\nCompletion: ${message.usage.completion_tokens || 0} tokens`}>
+                {(message.usage.prompt_tokens || 0) + (message.usage.completion_tokens || 0)} tok
+              </span>
             )}
           </div>
         </div>

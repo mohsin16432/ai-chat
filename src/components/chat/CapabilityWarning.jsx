@@ -45,7 +45,7 @@ export default function CapabilityWarning({ settings, chats, activeChatId, hasFi
           style={{
             background: 'var(--color-danger-muted)',
             border: '1px solid #ef444430',
-            color: '#fca5a5',
+            color: 'var(--color-danger-text)',
           }}
         >
           <AlertTriangle size={16} className="shrink-0" />

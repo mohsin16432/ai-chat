@@ -4,6 +4,7 @@ export async function streamChat({ baseUrl, apiKey, model, messages, onToken, si
   const payload = {
     model,
     stream: true,
+    stream_options: { include_usage: true },
     messages: messages.map((m) => {
       if (!m.imageUrls || m.imageUrls.length === 0) {
         return { role: m.role, content: m.content };
@@ -60,6 +61,7 @@ export async function streamChat({ baseUrl, apiKey, model, messages, onToken, si
   const decoder = new TextDecoder();
   let buffer = '';
   let full = '';
+  let usage = null;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -86,10 +88,13 @@ export async function streamChat({ baseUrl, apiKey, model, messages, onToken, si
           full += delta;
           onToken(full);
         }
+        if (json.usage) {
+          usage = json.usage;
+        }
       } catch {
         // ignore partial/keepalive lines
       }
     }
   }
-  return full;
+  return { text: full, usage };
 }

@@ -5,7 +5,7 @@ import MessageBubble from './MessageBubble';
 import CodeBlock from './CodeBlock';
 import { getActiveModel } from '../../lib/models';
 
-export default function MessageList({ messages, urlMap, streamingText, onEditMessage, onRegenerate, settings, chats, activeChatId }) {
+export default function MessageList({ messages, urlMap, streamingText, onEditMessage, onRegenerate, onFeedback, settings, chats, activeChatId }) {
   const containerRef = useRef(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showScrollBadge, setShowScrollBadge] = useState(false);
@@ -75,6 +75,7 @@ export default function MessageList({ messages, urlMap, streamingText, onEditMes
               urlMap={urlMap}
               onEdit={onEditMessage}
               onRegenerate={onRegenerate}
+              onFeedback={onFeedback}
               settings={settings}
               chats={chats}
               activeChatId={activeChatId}

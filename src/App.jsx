@@ -22,6 +22,7 @@ import SettingsModal from './components/settings/SettingsModal';
 import ChatSettings from './components/chat/ChatSettings';
 import SearchModal from './components/chat/SearchModal';
 import ArtifactsPanel from './components/chat/ArtifactsPanel';
+import { exportChatToMarkdown } from './components/chat/ExportButton';
 
 // Lucide Icons (Correctly Imported to prevent crashes)
 import { Loader2 } from 'lucide-react';
@@ -75,11 +76,23 @@ export default function App() {
     localStorage.setItem('app_settings', JSON.stringify(newSettings));
   };
 
+  // Apply theme to <html>
+  useEffect(() => {
+    const theme = settings?.theme || 'dark';
+    document.documentElement.dataset.theme = theme;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', theme === 'light' ? '#ffffff' : '#18181b');
+  }, [settings?.theme]);
+
+  function handleToggleTheme() {
+    handleUpdateSettings({ ...settings, theme: settings?.theme === 'light' ? 'dark' : 'light' });
+  }
+
   const {
     chats, setChats,
     activeChatId, activeChatIdRef,
     error, setError,
-    createChat, renameChat, deleteChat,
+    createChat, renameChat, deleteChat, togglePin,
     updateChatModel, updateChatSettings,
     selectChat: selectChatBase,
   } = useChats(session);
@@ -89,7 +102,7 @@ export default function App() {
     messagesCache, urlCache, urlMap, setUrlMap,
     resolveUrls, loadMessages, appendMessage,
     initChatMessages, clearMessages, removeChatFromCache,
-    deleteMessagesAfter, updateMessage,
+    deleteMessagesAfter, updateMessage, updateMessageFeedback,
   } = useMessages();
 
   const { streamingText, sending, startStreaming, onToken, stopStreaming, cancelStreaming } = useStreaming();
@@ -118,6 +131,11 @@ export default function App() {
     onSettings: () => setShowSettings(true),
     onChatSettings: () => activeChatId && setShowChatSettings(true),
     onToggleSidebar: () => setSidebarOpen((p) => !p),
+    onExport: () => {
+      if (!activeChatId) return;
+      const activeChat = chats.find((c) => c.id === activeChatId);
+      if (activeChat) exportChatToMarkdown(activeChat, messages);
+    },
   });
 
   // Subscribe to global View Artifact trigger events
@@ -166,7 +184,7 @@ export default function App() {
       const activeModel = getActiveModel(settings, chats, chatId);
       const titlePrompt = `Generate a short title (max 4 words) for this conversation. Respond with only the title, no quotes.\nUser: ${userText}\nAssistant: ${assistantText}\nTitle:`;
 
-      const title = await streamChat({
+      const titleResult = await streamChat({
         baseUrl: settings.baseUrl,
         apiKey: settings.apiKey,
         model: activeModel?.id || settings.defaultModelId,
@@ -178,7 +196,7 @@ export default function App() {
         proxySettings: settings,
       });
 
-      const trimmedTitle = title.trim().replace(/^["']|["']$/g, '');
+      const trimmedTitle = (titleResult?.text || '').trim().replace(/^["']|["']$/g, '');
       if (trimmedTitle.split(/\s+/).filter((w) => w).length <= 4 && trimmedTitle) {
         renameChat(chatId, trimmedTitle);
       }
@@ -208,6 +226,12 @@ export default function App() {
     }
 
     await sendMessageFromContent(activeChatId, newContent, []);
+  }
+
+  // Persist thumbs up/down feedback on assistant messages
+  function handleFeedback(messageId, feedback) {
+    if (!activeChatId) return;
+    updateMessageFeedback(activeChatId, messageId, feedback, activeChatIdRef);
   }
 
   // Regenerate assistant message
@@ -297,7 +321,7 @@ export default function App() {
       console.log('%cFormatted Message Payload Array:', 'color: #a3a3a3;', llmMessages);
       console.groupEnd();
 
-      const full = await streamChat({
+      const { text: full, usage } = await streamChat({
         baseUrl: settings.baseUrl,
         apiKey: settings.apiKey,
         model: activeModel.id,
@@ -311,7 +335,7 @@ export default function App() {
 
       const { data: aMsg, error: aErr } = await supabase
         .from('messages')
-        .insert({ chat_id: chatId, role: 'assistant', content: full, model: activeModel.id })
+        .insert({ chat_id: chatId, role: 'assistant', content: full, model: activeModel.id, usage: usage || null })
         .select()
         .single();
       if (aErr) throw new Error(aErr.message);
@@ -508,7 +532,7 @@ export default function App() {
 
       const sentModelId = currentModel?.id || settings.defaultModelId;
 
-      const full = await streamChat({
+      const { text: full, usage } = await streamChat({
         baseUrl: settings.baseUrl,
         apiKey: settings.apiKey,
         model: sentModelId,
@@ -522,7 +546,7 @@ export default function App() {
 
       const { data: aMsg, error: aErr } = await supabase
         .from('messages')
-        .insert({ chat_id: chatId, role: 'assistant', content: full, model: sentModelId })
+        .insert({ chat_id: chatId, role: 'assistant', content: full, model: sentModelId, usage: usage || null })
         .select()
         .single();
       if (aErr) throw new Error(aErr.message);
@@ -564,6 +588,7 @@ export default function App() {
         onNewChat={handleNewChat}
         onRenameChat={renameChat}
         onDeleteChat={handleDeleteChat}
+        onTogglePin={togglePin}
         onOpenSettings={() => setShowSettings(true)}
         onSignOut={() => supabase.auth.signOut()}
         email={session.user.email}
@@ -583,6 +608,7 @@ export default function App() {
             onChangeModel={handleChangeModel}
             onMenuClick={() => setSidebarOpen(true)}
             onChatSettings={() => setShowChatSettings(true)}
+            onToggleTheme={handleToggleTheme}
           />
 
           {activeChatId ? (
@@ -594,6 +620,7 @@ export default function App() {
                 streamingText={streamingText}
                 onEditMessage={handleEditMessage}
                 onRegenerate={handleRegenerate}
+                onFeedback={handleFeedback}
                 settings={settings}
                 chats={chats}
                 activeChatId={activeChatId}
@@ -603,7 +630,7 @@ export default function App() {
                 <div className="mx-auto max-w-3xl w-full px-4 pb-2 shrink-0">
                   <div
                     className="rounded-xl px-4 py-2 text-sm"
-                    style={{ background: 'var(--color-danger-muted)', color: '#fca5a5' }}
+                    style={{ background: 'var(--color-danger-muted)', color: 'var(--color-danger-text)' }}
                   >
                     {error}
                   </div>
@@ -662,6 +689,7 @@ export default function App() {
       {showChatSettings && activeChatId && (
         <ChatSettings
           chat={chats.find((c) => c.id === activeChatId)}
+          messages={messages}
           onUpdate={updateChatSettings}
           onClose={() => setShowChatSettings(false)}
         />

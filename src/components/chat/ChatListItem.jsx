@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Pencil, Trash2, MessageSquare, Check } from 'lucide-react';
+import { Pencil, Trash2, MessageSquare, Check, Pin, PinOff } from 'lucide-react';
 
-export default function ChatListItem({ chat, isActive, onSelect, onRename, onDelete }) {
+export default function ChatListItem({ chat, isActive, onSelect, onRename, onDelete, onTogglePin }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(chat.title);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
@@ -72,11 +72,24 @@ export default function ChatListItem({ chat, isActive, onSelect, onRename, onDel
           >
             {chat.title || 'New chat'}
           </span>
+          {chat.pinned && (
+            <Pin size={11} className="shrink-0" style={{ color: 'var(--color-accent-hover)' }} />
+          )}
           <div
             className={`flex items-center gap-0.5 transition-opacity ${
               isActive || isConfirmingDelete ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
             }`}
           >
+            {onTogglePin && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onTogglePin(chat.id, !chat.pinned); }}
+                className="p-1 rounded-md transition-colors"
+                style={{ color: chat.pinned ? 'var(--color-danger)' : 'var(--color-text-faint)' }}
+                title={chat.pinned ? 'Unpin' : 'Pin'}
+              >
+                {chat.pinned ? <PinOff size={12} /> : <Pin size={12} />}
+              </button>
+            )}
             <button
               onClick={(e) => { e.stopPropagation(); setEditing(true); }}
               className="p-1 rounded-md transition-colors"
