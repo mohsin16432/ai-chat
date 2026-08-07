@@ -39,7 +39,7 @@ export default function ExportButton({ chat, messages }) {
   return (
     <button
       onClick={() => exportChatToMarkdown(chat, messages)}
-      className="p-1.5 rounded-lg transition-colors"
+      className="p-2 rounded-xl transition-colors poe-control"
       style={{ color: 'var(--color-text-muted)' }}
       title="Export as Markdown"
     >

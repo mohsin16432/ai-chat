@@ -94,12 +94,15 @@ export default function CodeBlock({ language, children }) {
 
   return (
     <div
-      className="relative rounded-xl overflow-hidden my-3"
-      style={{ border: '1px solid var(--color-border)' }}
+      className="relative rounded-[22px] overflow-hidden my-4"
+      style={{
+        border: '1px solid var(--color-border)',
+        boxShadow: 'inset 0 1px 0 color-mix(in srgb, white 4%, transparent)',
+      }}
     >
       {/* Header bar — always visible */}
       <div
-        className="flex items-center justify-between px-4 py-2"
+        className="flex items-center justify-between px-4 py-2.5"
         style={{
           background: 'var(--color-surface-hover)',
           borderBottom: '1px solid var(--color-border)',
@@ -117,7 +120,7 @@ export default function CodeBlock({ language, children }) {
           {isArtifactCompatible && (
             <button
               onClick={handleOpenArtifact}
-              className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg transition-all border font-semibold active:scale-95"
+              className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-xl transition-all border font-semibold active:scale-95"
               style={{ 
                 background: 'rgba(99, 102, 241, 0.15)',
                 color: 'var(--color-accent-hover)',
@@ -131,7 +134,7 @@ export default function CodeBlock({ language, children }) {
 
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg transition-colors active:scale-95"
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-xl transition-colors active:scale-95"
             style={{
               color: copied ? 'var(--color-success)' : 'var(--color-text-faint)',
               background: copied ? 'var(--color-success)15' : 'var(--color-surface)',

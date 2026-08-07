@@ -30,7 +30,7 @@ export function useChats(session) {
       .from('chats')
       .insert({
         user_id: session.user.id,
-        title: 'New chat',
+        title: '',
         model: null,
       })
       .select()

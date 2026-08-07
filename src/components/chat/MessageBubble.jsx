@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { 
-  User, 
   Bot, 
   Edit3, 
   Copy, 
@@ -166,7 +165,7 @@ export default function MessageBubble({
   if (isUser) {
     return (
       <div className="group flex w-full justify-end">
-        <div className="flex flex-col items-end gap-1 max-w-[85%] md:max-w-[75%]">
+        <div className="flex flex-col items-end gap-1.5 max-w-[92%] md:max-w-[70%]">
           {isEditing ? (
             <div className="flex flex-col gap-2 min-w-[240px] w-full">
               <textarea
@@ -201,20 +200,25 @@ export default function MessageBubble({
             <>
               {skill && (
                 <div 
-                  className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-semibold mb-1 uppercase tracking-wider"
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold mb-1 uppercase tracking-wider"
                   style={{
-                    background: 'rgba(255,255,255,0.08)',
-                    color: 'var(--color-text-muted)',
+                    background: 'var(--color-accent-muted)',
+                    color: 'var(--color-accent-hover)',
                   }}
                 >
                   /{skill.command}
                 </div>
               )}
+              <div className="text-[11px] font-medium pr-1" style={{ color: 'var(--color-text-faint)' }}>
+                You
+              </div>
               <div
-                className="rounded-2xl px-4 py-2.5 text-sm leading-relaxed"
+                className="rounded-[24px] px-4 py-3 text-[14px] md:text-sm leading-relaxed"
                 style={{
-                  background: 'var(--color-user-bubble)',
+                  background: 'color-mix(in srgb, var(--color-surface-alt) 88%, var(--color-accent) 12%)',
                   color: 'var(--color-text)',
+                  border: '1px solid color-mix(in srgb, var(--color-border-light) 62%, transparent)',
+                  boxShadow: 'inset 0 1px 0 color-mix(in srgb, white 7%, transparent)',
                 }}
               >
                 <div className="prose prose-sm prose-chat max-w-none">
@@ -289,14 +293,14 @@ export default function MessageBubble({
               >
                 <button 
                   onClick={handleCopy} 
-                  className="p-1 rounded-md hover:bg-[var(--color-surface-hover)] transition-colors"
+                  className="p-1.5 rounded-xl hover:bg-[var(--color-surface-hover)] transition-colors"
                   title="Copy"
                 >
                   {copied ? <CheckCheck size={13} style={{ color: 'var(--color-success)' }} /> : <Copy size={13} />}
                 </button>
                 <button 
                   onClick={() => setIsEditing(true)} 
-                  className="p-1 rounded-md hover:bg-[var(--color-surface-hover)] transition-colors"
+                  className="p-1.5 rounded-xl hover:bg-[var(--color-surface-hover)] transition-colors"
                   title="Edit"
                 >
                   <Edit3 size={13} />
@@ -312,15 +316,15 @@ export default function MessageBubble({
   // --- ASSISTANT MESSAGE: clean flowing text, no bubble ---
   return (
     <div className="group flex w-full justify-start">
-      <div className="flex gap-3 w-full max-w-[85%] md:max-w-[80%]">
+      <div className="flex gap-3 md:gap-3.5 w-full">
         
         {/* Avatar — small, subtle */}
         <div className="shrink-0 mt-0.5 relative group">
           <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden"
+            className="w-7 h-7 md:w-8 md:h-8 rounded-xl flex items-center justify-center overflow-hidden"
             style={{
               background: 'var(--color-surface-alt)',
-              border: '1px solid var(--color-border)',
+              border: '1px solid color-mix(in srgb, var(--color-border) 88%, transparent)',
             }}
           >
             {(modelIcon && !imageError) ? (
@@ -340,12 +344,21 @@ export default function MessageBubble({
         </div>
 
         {/* Content — no bubble, just text */}
-        <div className="flex flex-col gap-1 min-w-0 flex-1">
+        <div className="flex flex-col gap-1.5 md:gap-2 min-w-0 flex-1 pt-0.5">
+
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="text-[11px] md:text-[12px] font-semibold truncate" style={{ color: 'var(--color-text)' }}>
+              {displayModelName}
+            </div>
+            <div className="text-[11px]" style={{ color: 'var(--color-text-faint)' }}>
+              Assistant
+            </div>
+          </div>
           
           {/* Skill badge */}
           {skill && (
             <div 
-              className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider w-fit"
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider w-fit"
               style={{
                 background: 'var(--color-accent-muted)',
                 color: 'var(--color-accent-hover)',
@@ -356,7 +369,7 @@ export default function MessageBubble({
           )}
 
           {/* Markdown content — clean, no wrapper */}
-          <div className="prose prose-sm prose-chat max-w-none text-sm leading-relaxed">
+          <div className="prose prose-sm prose-chat max-w-none text-[14px] md:text-[15px] leading-7">
             <ReactMarkdown
               components={{
                 code({ node, className, children, ...props }) {
@@ -432,7 +445,7 @@ export default function MessageBubble({
           >
             <button 
               onClick={handleCopy} 
-              className="p-1 rounded-md hover:bg-[var(--color-surface-hover)] transition-colors"
+              className="p-1.5 rounded-xl hover:bg-[var(--color-surface-hover)] transition-colors"
               title="Copy"
             >
               {copied ? <CheckCheck size={13} style={{ color: 'var(--color-success)' }} /> : <Copy size={13} />}
@@ -440,7 +453,7 @@ export default function MessageBubble({
             {onRegenerate && (
               <button 
                 onClick={() => onRegenerate(id)} 
-                className="p-1 rounded-md hover:bg-[var(--color-surface-hover)] transition-colors"
+                className="p-1.5 rounded-xl hover:bg-[var(--color-surface-hover)] transition-colors"
                 title="Regenerate"
               >
                 <RotateCw size={13} />
@@ -450,7 +463,7 @@ export default function MessageBubble({
               <>
                 <button
                   onClick={() => onFeedback(id, message.feedback === 'up' ? null : 'up')}
-                  className="p-1 rounded-md hover:bg-[var(--color-surface-hover)] transition-colors"
+                  className="p-1.5 rounded-xl hover:bg-[var(--color-surface-hover)] transition-colors"
                   style={{ color: message.feedback === 'up' ? 'var(--color-accent-hover)' : undefined }}
                   title="Good response"
                 >
@@ -458,7 +471,7 @@ export default function MessageBubble({
                 </button>
                 <button
                   onClick={() => onFeedback(id, message.feedback === 'down' ? null : 'down')}
-                  className="p-1 rounded-md hover:bg-[var(--color-surface-hover)] transition-colors"
+                  className="p-1.5 rounded-xl hover:bg-[var(--color-surface-hover)] transition-colors"
                   style={{ color: message.feedback === 'down' ? 'var(--color-accent-hover)' : undefined }}
                   title="Bad response"
                 >
@@ -469,7 +482,7 @@ export default function MessageBubble({
             {ttsSupported && (
               <button
                 onClick={toggleSpeak}
-                className="p-1 rounded-md hover:bg-[var(--color-surface-hover)] transition-colors"
+                className="p-1.5 rounded-xl hover:bg-[var(--color-surface-hover)] transition-colors"
                 style={{ color: isSpeaking ? 'var(--color-accent-hover)' : undefined }}
                 title={isSpeaking ? 'Stop reading' : 'Read aloud'}
               >

@@ -9,36 +9,45 @@ const SUGGESTIONS = [
 
 export default function EmptyState({ onSuggestion }) {
   return (
-    <div className="flex flex-1 items-center justify-center p-4">
-      <div className="text-center space-y-6 w-full max-w-2xl">
+    <div className="flex flex-1 items-center justify-center px-4 py-8 md:px-6">
+      <div className="text-center space-y-7 w-full max-w-3xl">
         <div
-          className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mx-auto"
-          style={{ background: 'var(--color-accent-muted)' }}
+          className="inline-flex items-center justify-center w-16 h-16 rounded-[22px] mx-auto"
+          style={{
+            background: 'linear-gradient(180deg, color-mix(in srgb, var(--color-accent) 24%, transparent), color-mix(in srgb, var(--color-accent) 10%, transparent))',
+            border: '1px solid color-mix(in srgb, var(--color-accent) 22%, transparent)',
+          }}
         >
           <Sparkles size={26} style={{ color: 'var(--color-accent-hover)' }} />
         </div>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight" style={{ color: 'var(--color-text)' }}>
-            What can I help with?
+          <div className="text-[11px] font-semibold uppercase tracking-[0.22em]" style={{ color: 'var(--color-text-faint)' }}>
+            Start here
+          </div>
+          <h1 className="text-[2rem] md:text-[2.5rem] font-semibold tracking-[-0.04em] mt-3" style={{ color: 'var(--color-text)' }}>
+            Ask clearly. Read calmly.
           </h1>
-          <p className="text-sm mt-2" style={{ color: 'var(--color-text-faint)' }}>
-            Ask anything, attach files, or use a skill command
+          <p className="text-sm md:text-[15px] mt-3 max-w-xl mx-auto leading-7" style={{ color: 'var(--color-text-muted)' }}>
+            A cleaner workspace for long chats, file-grounded prompts, and focused replies.
           </p>
         </div>
         {onSuggestion && (
-          <div className="grid grid-cols-2 gap-2 max-w-lg mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mx-auto">
             {SUGGESTIONS.map((s, i) => (
               <button
                 key={i}
                 onClick={() => onSuggestion(s.text)}
-                className="flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm text-left transition-all hover:opacity-90"
+                className="poe-panel flex items-center gap-3 px-4 py-4 rounded-[22px] text-sm text-left transition-all hover:-translate-y-0.5"
                 style={{
-                  background: 'var(--color-surface-alt)',
-                  border: '1px solid var(--color-border)',
                   color: 'var(--color-text-muted)',
                 }}
               >
-                <s.icon size={16} style={{ color: 'var(--color-text-faint)' }} />
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: 'var(--color-surface-hover)', color: 'var(--color-accent-hover)' }}
+                >
+                  <s.icon size={16} />
+                </div>
                 <span className="truncate">{s.text}</span>
               </button>
             ))}

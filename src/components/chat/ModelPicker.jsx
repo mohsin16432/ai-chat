@@ -62,8 +62,8 @@ export default function ModelPicker({ settings, chats, activeChatId, onChangeMod
     <div className="relative inline-block text-left" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors max-w-[160px] sm:max-w-[220px] cursor-pointer"
-        style={{ background: 'transparent', color: 'var(--color-text-muted)' }}
+        className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-colors max-w-[160px] sm:max-w-[220px] cursor-pointer poe-control"
+        style={{ color: 'var(--color-text-muted)' }}
         title="Select model"
       >
         {activeModelIcon ? (
@@ -77,8 +77,8 @@ export default function ModelPicker({ settings, chats, activeChatId, onChangeMod
 
       {isOpen && (
         <div
-          className="absolute right-0 mt-2 w-72 rounded-xl border shadow-2xl z-50 flex flex-col overflow-hidden animate-fade-in"
-          style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-surface-alt)' }}
+          className="absolute right-0 mt-2 w-72 rounded-2xl border shadow-2xl z-50 flex flex-col overflow-hidden animate-fade-in"
+          style={{ borderColor: 'var(--color-border-light)', background: 'color-mix(in srgb, var(--color-surface-alt) 95%, transparent)' }}
         >
           <div className="p-2 border-b flex items-center gap-2 shrink-0" style={{ borderColor: 'var(--color-border)' }}>
             <Search size={14} className="opacity-50 ml-1.5 shrink-0" style={{ color: 'var(--color-text-faint)' }} />

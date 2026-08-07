@@ -33,7 +33,10 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showChatSettings, setShowChatSettings] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth >= 768;
+  });
   
   // Phase 3 & Phase 5 States
   const [activeArtifact, setActiveArtifact] = useState(null);
@@ -172,7 +175,10 @@ export default function App() {
   }
 
   function handleChangeModel(modelId) {
-    if (!activeChatId) return;
+    if (!activeChatId) {
+      handleUpdateSettings({ ...settings, defaultModelId: modelId });
+      return;
+    }
     updateChatModel(activeChatId, modelId, settings.defaultModelId);
   }
 
@@ -580,102 +586,114 @@ export default function App() {
   if (!session) return <AuthScreen />;
 
   return (
-    <div className="flex h-dvh pt-safe overflow-hidden" style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}>
-      <Sidebar
-        chats={chats}
-        activeChatId={activeChatId}
-        onSelectChat={selectChat}
-        onNewChat={handleNewChat}
-        onRenameChat={renameChat}
-        onDeleteChat={handleDeleteChat}
-        onTogglePin={togglePin}
-        onOpenSettings={() => setShowSettings(true)}
-        onSignOut={() => supabase.auth.signOut()}
-        email={session.user.email}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onSearch={() => setShowSearch(true)}
-      />
+    <div className="app-stage flex h-dvh overflow-hidden pt-safe" style={{ color: 'var(--color-text)' }}>
+      <div className="app-shell flex h-full w-full overflow-hidden">
+        <Sidebar
+          chats={chats}
+          activeChatId={activeChatId}
+          onSelectChat={selectChat}
+          onNewChat={handleNewChat}
+          onRenameChat={renameChat}
+          onDeleteChat={handleDeleteChat}
+          onTogglePin={togglePin}
+          onOpenSettings={() => setShowSettings(true)}
+          onSignOut={() => supabase.auth.signOut()}
+          email={session.user.email}
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onSearch={() => setShowSearch(true)}
+        />
 
-      {/* Main split-pane wrapper context with safe height boundaries */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-w-0 h-full relative">
-        <main className="flex flex-1 flex-col h-full min-w-0 overflow-hidden">
-          <Header
-            settings={settings}
-            chats={chats}
-            activeChatId={activeChatId}
-            messages={messages}
-            onChangeModel={handleChangeModel}
-            onMenuClick={() => setSidebarOpen(true)}
-            onChatSettings={() => setShowChatSettings(true)}
-            onToggleTheme={handleToggleTheme}
-          />
+        {/* Main split-pane wrapper context with safe height boundaries */}
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-w-0 h-full relative">
+          <main
+            className="app-main-surface flex flex-1 flex-col h-full min-w-0 overflow-hidden"
+          >
+            <Header
+              settings={settings}
+              chats={chats}
+              activeChatId={activeChatId}
+              messages={messages}
+              onChangeModel={handleChangeModel}
+              onMenuClick={() => setSidebarOpen((prev) => !prev)}
+              onChatSettings={() => setShowChatSettings(true)}
+              onToggleTheme={handleToggleTheme}
+            />
 
-          {activeChatId ? (
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+            {activeChatId ? (
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
               
-              <MessageList
-                messages={messages}
-                urlMap={urlMap}
-                streamingText={streamingText}
-                onEditMessage={handleEditMessage}
-                onRegenerate={handleRegenerate}
-                onFeedback={handleFeedback}
-                settings={settings}
-                chats={chats}
-                activeChatId={activeChatId}
-              />
+                <MessageList
+                  messages={messages}
+                  urlMap={urlMap}
+                  streamingText={streamingText}
+                  onEditMessage={handleEditMessage}
+                  onRegenerate={handleRegenerate}
+                  onFeedback={handleFeedback}
+                  settings={settings}
+                  chats={chats}
+                  activeChatId={activeChatId}
+                />
 
-              {error && (
-                <div className="mx-auto max-w-3xl w-full px-4 pb-2 shrink-0">
-                  <div
-                    className="rounded-xl px-4 py-2 text-sm"
-                    style={{ background: 'var(--color-danger-muted)', color: 'var(--color-danger-text)' }}
-                  >
-                    {error}
+                {error && (
+                  <div className="mx-auto max-w-4xl w-full px-4 pb-2 shrink-0">
+                    <div
+                      className="rounded-2xl px-4 py-2.5 text-sm"
+                      style={{
+                        background: 'var(--color-danger-muted)',
+                        color: 'var(--color-danger-text)',
+                        border: '1px solid color-mix(in srgb, var(--color-danger) 22%, transparent)',
+                      }}
+                    >
+                      {error}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              <CapabilityWarning
-                settings={settings}
-                chats={chats}
-                activeChatId={activeChatId}
-                hasFiles={false}
-                onSwitchModel={handleChangeModel}
-              />
+                <CapabilityWarning
+                  settings={settings}
+                  chats={chats}
+                  activeChatId={activeChatId}
+                  hasFiles={false}
+                  onSwitchModel={handleChangeModel}
+                />
 
-              {/* Web search progress loader element */}
-              {searchingWeb && (
-                <div className="mx-auto max-w-3xl w-full px-4 pb-2 shrink-0">
-                  <div 
-                    className="rounded-xl px-4 py-3 text-xs flex items-center gap-2"
-                    style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--color-accent-hover)', border: '1px solid var(--color-accent)' }}
-                  >
-                    <Loader2 className="animate-spin" size={14} />
-                    <span>Searching the web for live resources and citing facts...</span>
+                {/* Web search progress loader element */}
+                {searchingWeb && (
+                  <div className="mx-auto max-w-4xl w-full px-4 pb-2 shrink-0">
+                    <div
+                      className="rounded-2xl px-4 py-3 text-xs flex items-center gap-2"
+                      style={{
+                        background: 'var(--color-accent-muted)',
+                        color: 'var(--color-accent-hover)',
+                        border: '1px solid color-mix(in srgb, var(--color-accent) 28%, transparent)',
+                      }}
+                    >
+                      <Loader2 className="animate-spin" size={14} />
+                      <span>Searching the web for live resources and citing facts...</span>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              <ChatInput
-                onSend={sendMessage}
-                sending={sending}
-                onCancel={cancelStreaming}
-              />
-            </div>
-          ) : (
-            <EmptyState />
+                <ChatInput
+                  onSend={sendMessage}
+                  sending={sending}
+                  onCancel={cancelStreaming}
+                />
+              </div>
+            ) : (
+              <EmptyState />
+            )}
+          </main>
+
+          {/* Dynamic Slide-out Artifact Preview Panel */}
+          {activeArtifact && (
+            <ArtifactsPanel
+              artifact={activeArtifact}
+              onClose={() => setActiveArtifact(null)}
+            />
           )}
-        </main>
-
-        {/* Dynamic Slide-out Artifact Preview Panel */}
-        {activeArtifact && (
-          <ArtifactsPanel
-            artifact={activeArtifact}
-            onClose={() => setActiveArtifact(null)}
-          />
-        )}
+        </div>
       </div>
 
       {showSettings && (

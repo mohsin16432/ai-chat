@@ -2,51 +2,61 @@
 @plugin "@tailwindcss/typography";
 
 :root {
-  /* Premium dark palette — lighter, cooler, more depth */
-  --color-surface: #18181b;
-  --color-surface-alt: #1e1e22;
-  --color-surface-hover: #27272a;
-  --color-surface-active: #2d2d31;
-  --color-border: #27272a;
-  --color-border-light: #3f3f46;
-  --color-text: #f4f4f5;
-  --color-text-muted: #a1a1aa;
-  --color-text-faint: #71717a;
-  --color-accent: #6366f1;
-  --color-accent-hover: #818cf8;
-  --color-accent-muted: #6366f118;
-  --color-user-bubble: #27272a;
-  --color-user-bubble-text: #f4f4f5;
+  --color-stage: #111318;
+  --color-shell: #141821;
+  --color-rail: #151821;
+  --color-surface: #181c25;
+  --color-surface-alt: #1d2230;
+  --color-surface-hover: #262c3c;
+  --color-surface-active: #2f3650;
+  --color-overlay: rgba(7, 10, 18, 0.72);
+  --color-border: #2a3141;
+  --color-border-light: #3c4760;
+  --color-text: #f5f7fb;
+  --color-text-muted: #b0b8ca;
+  --color-text-faint: #7b8499;
+  --color-accent: #7b72ff;
+  --color-accent-hover: #a39dff;
+  --color-accent-muted: #7b72ff18;
+  --color-user-bubble: linear-gradient(135deg, #6e63ff 0%, #5f62ff 100%);
+  --color-user-bubble-text: #ffffff;
   --color-danger: #ef4444;
   --color-danger-muted: #ef444420;
   --color-danger-text: #fca5a5;
   --color-warning: #f59e0b;
   --color-warning-muted: #f59e0b15;
   --color-success: #22c55e;
+  --shadow-soft: 0 18px 50px rgba(0, 0, 0, 0.24);
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.16);
 }
 
-/* Light theme — applied via [data-theme="light"] on <html> */
 [data-theme="light"] {
-  --color-surface: #ffffff;
-  --color-surface-alt: #f4f4f5;
-  --color-surface-hover: #e4e4e7;
-  --color-surface-active: #d4d4d8;
-  --color-border: #e4e4e7;
-  --color-border-light: #d4d4d8;
-  --color-text: #18181b;
-  --color-text-muted: #52525b;
-  --color-text-faint: #a1a1aa;
-  --color-accent: #6366f1;
-  --color-accent-hover: #4f46e5;
-  --color-accent-muted: #6366f114;
-  --color-user-bubble: #e4e4e7;
-  --color-user-bubble-text: #18181b;
+  --color-stage: #f2f2f5;
+  --color-shell: #fcfcfe;
+  --color-rail: #f7f7f9;
+  --color-surface: #f7f7fa;
+  --color-surface-alt: #ffffff;
+  --color-surface-hover: #efeff4;
+  --color-surface-active: #e7e7ef;
+  --color-overlay: rgba(22, 24, 34, 0.2);
+  --color-border: #e7e7ee;
+  --color-border-light: #d8d9e3;
+  --color-text: #17171c;
+  --color-text-muted: #676775;
+  --color-text-faint: #9090a1;
+  --color-accent: #655cf6;
+  --color-accent-hover: #544ae8;
+  --color-accent-muted: #655cf614;
+  --color-user-bubble: linear-gradient(135deg, #6b61f6 0%, #5b63ff 100%);
+  --color-user-bubble-text: #ffffff;
   --color-danger: #ef4444;
   --color-danger-muted: #ef444415;
   --color-danger-text: #dc2626;
   --color-warning: #f59e0b;
   --color-warning-muted: #f59e0b12;
-  --color-success: #22c55e;
+  --color-success: #16a34a;
+  --shadow-soft: 0 18px 50px rgba(24, 24, 39, 0.06);
+  --shadow-card: 0 12px 30px rgba(24, 24, 39, 0.05);
 }
 
 * {
@@ -55,10 +65,18 @@
 
 html, body {
   overscroll-behavior: none;
-  background: var(--color-surface);
+  background: var(--color-stage);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  color: var(--color-text);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 28%, transparent);
 }
 
 /* Scrollbar */
@@ -150,18 +168,18 @@ textarea {
 
 /* Glassmorphic UI Overlay */
 .glass-surface {
-  background: rgba(24, 24, 27, 0.72) !important;
+  background: color-mix(in srgb, var(--color-surface-alt) 78%, transparent) !important;
   backdrop-filter: blur(24px) saturate(1.4) !important;
   -webkit-backdrop-filter: blur(24px) saturate(1.4) !important;
-  border: 1px solid rgba(255, 255, 255, 0.06) !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid color-mix(in srgb, var(--color-border-light) 65%, transparent) !important;
+  box-shadow: var(--shadow-card), inset 0 1px 0 color-mix(in srgb, white 45%, transparent) !important;
 }
 
 .glass-surface-alt {
-  background: rgba(30, 30, 34, 0.6) !important;
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent) !important;
   backdrop-filter: blur(16px) saturate(1.3) !important;
   -webkit-backdrop-filter: blur(16px) saturate(1.3) !important;
-  border: 1px solid rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid color-mix(in srgb, var(--color-border) 75%, transparent) !important;
 }
 
 .glass-accent {
@@ -195,4 +213,53 @@ textarea,
 }
 .animate-fade-in {
   animation: fade-in 0.2s ease-out;
+}
+
+.app-stage {
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 30%),
+    radial-gradient(circle at top left, color-mix(in srgb, white 5%, transparent), transparent 25%),
+    var(--color-stage);
+}
+
+.app-shell {
+  background: color-mix(in srgb, var(--color-shell) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
+  box-shadow: var(--shadow-soft), inset 0 1px 0 color-mix(in srgb, white 6%, transparent);
+}
+
+.app-main-surface {
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+}
+
+.poe-panel {
+  background: color-mix(in srgb, var(--color-surface-alt) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 4%, transparent);
+}
+
+.poe-control {
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.poe-control:hover {
+  background: var(--color-surface-hover);
+  border-color: color-mix(in srgb, var(--color-border-light) 70%, transparent);
+}
+
+@media (max-width: 767px) {
+  .app-stage {
+    background: #0a0b10;
+  }
+
+  .app-shell {
+    background: #0a0b10;
+    border: none;
+    box-shadow: none;
+  }
+
+  .app-main-surface {
+    background: #0a0b10;
+  }
 }

@@ -67,7 +67,7 @@ export default function MessageList({ messages, urlMap, streamingText, onEditMes
   return (
     <div className="flex-1 min-h-0 relative flex flex-col">
       <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 pb-16">
+        <div className="mx-auto w-full max-w-4xl space-y-6 md:space-y-8 px-4 md:px-6 py-4 md:py-8 pb-10 md:pb-18">
           {messages.map((m) => (
             <MessageBubble
               key={m.id}
@@ -83,14 +83,14 @@ export default function MessageList({ messages, urlMap, streamingText, onEditMes
           ))}
 
           {streamingText !== null && (
-            <div className="flex gap-3 w-full">
+            <div className="flex gap-3 md:gap-3.5 w-full">
               {/* Streaming avatar */}
               <div className="relative group shrink-0 mt-0.5">
                 <div
-                  className="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden"
+                  className="w-7 h-7 md:w-8 md:h-8 rounded-xl flex items-center justify-center overflow-hidden"
                   style={{
                     background: 'var(--color-surface-alt)',
-                    border: '1px solid var(--color-border)',
+                    border: '1px solid color-mix(in srgb, var(--color-border) 88%, transparent)',
                   }}
                 >
                   {modelIconUrl ? (
@@ -107,14 +107,14 @@ export default function MessageList({ messages, urlMap, streamingText, onEditMes
               </div>
 
               {/* Streaming content — no bubble, clean text */}
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 pt-0.5">
                 {!streamingText ? (
                   <div className="flex items-center gap-2 py-2" style={{ color: 'var(--color-text-faint)' }}>
                     <Loader2 className="animate-spin" size={14} />
                     <span className="text-sm">Thinking…</span>
                   </div>
                 ) : (
-                  <div className="prose prose-sm prose-chat max-w-none text-sm leading-relaxed">
+                  <div className="prose prose-sm prose-chat max-w-none text-[14px] md:text-[15px] leading-7">
                     <ReactMarkdown
                       components={{
                         code({ node, inline, className, children, ...props }) {
@@ -154,9 +154,9 @@ export default function MessageList({ messages, urlMap, streamingText, onEditMes
       {showScrollBadge && streamingText !== null && (
         <button 
           onClick={scrollToBottom}
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs font-medium py-2 px-4 rounded-full shadow-lg flex items-center gap-2 animate-bounce cursor-pointer z-50"
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs font-medium py-2 px-4 rounded-full shadow-lg flex items-center gap-2 cursor-pointer z-50"
           style={{
-            background: 'var(--color-surface-alt)',
+            background: 'color-mix(in srgb, var(--color-surface-alt) 96%, transparent)',
             color: 'var(--color-text)',
             border: '1px solid var(--color-border-light)',
           }}

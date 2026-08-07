@@ -1,95 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, X, MessageSquare, ArrowRight } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { useChatSearch } from '../../hooks/useChatSearch';
 
 export default function SearchModal({ onSelectChat, onClose }) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
-  const [searching, setSearching] = useState(false);
   const inputRef = useRef(null);
-  const debounceRef = useRef(null);
+  const { results, searching } = useChatSearch(query);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    if (!query.trim()) {
-      setResults([]);
-      return;
-    }
-
-    debounceRef.current = setTimeout(async () => {
-      setSearching(true);
-      try {
-        // Search in chat titles
-        const { data: chatResults } = await supabase
-          .from('chats')
-          .select('id, title, updated_at')
-          .ilike('title', `%${query.trim()}%`)
-          .order('updated_at', { ascending: false })
-          .limit(10);
-
-        // Search in message content
-        const { data: msgResults } = await supabase
-          .from('messages')
-          .select('id, chat_id, content, role, created_at')
-          .ilike('content', `%${query.trim()}%`)
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        // Group message results by chat and fetch chat titles
-        const chatIds = [...new Set((msgResults || []).map((m) => m.chat_id))];
-        let chatMap = {};
-        if (chatIds.length > 0) {
-          const { data: chatData } = await supabase
-            .from('chats')
-            .select('id, title')
-            .in('id', chatIds);
-          (chatData || []).forEach((c) => { chatMap[c.id] = c.title; });
-        }
-
-        const combined = [];
-
-        // Add chat title matches
-        (chatResults || []).forEach((c) => {
-          combined.push({
-            type: 'chat',
-            chatId: c.id,
-            chatTitle: c.title,
-            preview: c.title,
-            date: c.updated_at,
-          });
-        });
-
-        // Add message matches (dedupe by chat if already in title results)
-        const titleChatIds = new Set((chatResults || []).map((c) => c.id));
-        (msgResults || []).forEach((m) => {
-          combined.push({
-            type: 'message',
-            chatId: m.chat_id,
-            chatTitle: chatMap[m.chat_id] || 'Untitled',
-            preview: m.content.substring(0, 150),
-            role: m.role,
-            date: m.created_at,
-            alsoInTitles: titleChatIds.has(m.chat_id),
-          });
-        });
-
-        setResults(combined);
-      } catch (err) {
-        console.error('Search failed:', err);
-      } finally {
-        setSearching(false);
-      }
-    }, 300);
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [query]);
 
   function highlightMatch(text, q) {
     if (!q.trim()) return text;
@@ -104,6 +24,10 @@ export default function SearchModal({ onSelectChat, onClose }) {
         part
       )
     );
+  }
+
+  function getChatTitle(title) {
+    return title && title.trim() && title !== 'New chat' ? title : 'Untitled chat';
   }
 
   return (
@@ -184,7 +108,7 @@ export default function SearchModal({ onSelectChat, onClose }) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium truncate" style={{ color: 'var(--color-text)' }}>
-                    {highlightMatch(r.chatTitle, query)}
+                    {highlightMatch(getChatTitle(r.chatTitle), query)}
                   </span>
                   {r.type === 'message' && (
                     <span
