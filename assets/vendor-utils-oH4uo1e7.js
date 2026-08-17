@@ -1,0 +1,1 @@
+import{n as e,r as t,t as n}from"./markdown-parser-BEGTKu4_.js";var r={};function i(i){let a=this,o=i||r,s=a.data(),c=s.micromarkExtensions||=[],l=s.fromMarkdownExtensions||=[],u=s.toMarkdownExtensions||=[];c.push(n(o)),l.push(e()),u.push(t(o))}export{i as t};
