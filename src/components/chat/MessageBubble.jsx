@@ -1,5 +1,20 @@
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+// Some LLMs emit markdown tables with all rows on a single line:
+//   "| header | |---|---| | body | | body2 |"
+// remark-gfm requires each row on its own line. This splits compressed
+// table rows by inserting newlines at row boundaries ("| |" → "|\n|").
+function normalizeMarkdownTables(content) {
+  if (!content || !content.includes('|')) return content;
+  let result = content;
+  // Split header from separator: "| |---" → "|\n|---"
+  result = result.replace(/\|\s+\|---/g, '|\n|---');
+  // Split rows: "| |" followed by a letter (not dash) → "|\n|"
+  result = result.replace(/\|\s+\|(?=\s*[A-Za-z])/g, '|\n|');
+  return result;
+}
 import { 
   Bot, 
   Edit3, 
@@ -223,12 +238,14 @@ export default function MessageBubble({
               >
                 <div className="prose prose-sm prose-chat max-w-none">
                   <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
                     components={{
                       code({ node, className, children, ...props }) {
                         const match = /language-(\w+)/.exec(className || '');
-                        const isInline = !match;
-                        if (!isInline) {
-                          return <CodeBlock language={match[1]}>{children}</CodeBlock>;
+                        const childStr = typeof children === 'string' ? children : String(children || '');
+                        const isBlock = !!match || childStr.includes('\n');
+                        if (isBlock) {
+                          return <CodeBlock language={match ? match[1] : ''}>{children}</CodeBlock>;
                         }
                         return (
                           <code
@@ -245,9 +262,22 @@ export default function MessageBubble({
                           </code>
                         );
                       },
+                      table({ children }) {
+                        return (
+                          <div className="overflow-x-auto -mx-1 px-1 my-3">
+                            <table className="w-full text-xs border-collapse">{children}</table>
+                          </div>
+                        );
+                      },
+                      th({ children }) {
+                        return <th className="border border-[var(--color-border)] px-2.5 py-1.5 text-left font-semibold whitespace-nowrap" style={{ background: 'var(--color-surface-alt)' }}>{children}</th>;
+                      },
+                      td({ children }) {
+                        return <td className="border border-[var(--color-border-light)] px-2.5 py-1.5 align-top">{children}</td>;
+                      },
                     }}
                   >
-                    {content || ''}
+                    {normalizeMarkdownTables(content || '')}
                   </ReactMarkdown>
                 </div>
 
@@ -371,12 +401,14 @@ export default function MessageBubble({
           {/* Markdown content — clean, no wrapper */}
           <div className="prose prose-sm prose-chat max-w-none text-[14px] md:text-[15px] leading-7">
             <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
               components={{
                 code({ node, className, children, ...props }) {
                   const match = /language-(\w+)/.exec(className || '');
-                  const isInline = !match;
-                  if (!isInline) {
-                    return <CodeBlock language={match[1]}>{children}</CodeBlock>;
+                  const childStr = typeof children === 'string' ? children : String(children || '');
+                  const isBlock = !!match || childStr.includes('\n');
+                  if (isBlock) {
+                    return <CodeBlock language={match ? match[1] : ''}>{children}</CodeBlock>;
                   }
                   return (
                     <code
@@ -394,9 +426,22 @@ export default function MessageBubble({
                     </code>
                   );
                 },
+                table({ children }) {
+                  return (
+                    <div className="overflow-x-auto -mx-1 px-1 my-3">
+                      <table className="w-full text-xs border-collapse">{children}</table>
+                    </div>
+                  );
+                },
+                th({ children }) {
+                  return <th className="border border-[var(--color-border)] px-2.5 py-1.5 text-left font-semibold whitespace-nowrap" style={{ background: 'var(--color-surface-alt)' }}>{children}</th>;
+                },
+                td({ children }) {
+                  return <td className="border border-[var(--color-border-light)] px-2.5 py-1.5 align-top">{children}</td>;
+                },
               }}
             >
-              {content || ''}
+              {normalizeMarkdownTables(content || '')}
             </ReactMarkdown>
           </div>
 

@@ -322,6 +322,10 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
       if (e.key === 'Enter') { e.preventDefault(); selectSkill(filteredSkills[selectedSkillIndex]); return; }
       if (e.key === 'Escape') { e.preventDefault(); setShowCommands(false); return; }
     }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   const removeFile = (idxToRemove) => {
@@ -443,7 +447,7 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
           </div>
 
           <div className="flex items-end gap-1.5 md:gap-2">
-            <input ref={fileInputRef} type="file" accept="image/*,.pdf,.csv,.json,.txt,.css,.html,.js,.ts,.jsx,.tsx,.py,.md,.xml,.svg" multiple hidden onChange={handleFileChange} />
+            <input ref={fileInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.csv,.json,.txt,.css,.html,.js,.ts,.jsx,.tsx,.py,.md,.xml,.svg" multiple hidden onChange={handleFileChange} />
 
             <button
               onClick={() => fileInputRef.current?.click()}

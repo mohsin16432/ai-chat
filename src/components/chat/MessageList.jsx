@@ -1,9 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Loader2, Bot, ArrowDown, Sparkles } from 'lucide-react';
 import MessageBubble from './MessageBubble';
 import CodeBlock from './CodeBlock';
 import { getActiveModel } from '../../lib/models';
+
+function normalizeMarkdownTables(content) {
+  if (!content || !content.includes('|')) return content;
+  let result = content;
+  result = result.replace(/\|\s+\|---/g, '|\n|---');
+  result = result.replace(/\|\s+\|(?=\s*[A-Za-z])/g, '|\n|');
+  return result;
+}
 
 export default function MessageList({ messages, urlMap, streamingText, onEditMessage, onRegenerate, onFeedback, settings, chats, activeChatId }) {
   const containerRef = useRef(null);
@@ -32,6 +41,28 @@ export default function MessageList({ messages, urlMap, streamingText, onEditMes
       scrollToBottom();
     }
   }, [messages.length]);
+
+  // Scroll to bottom when switching chats — messages load async (cache then
+  // Supabase fetch), so keep retrying until content settles.
+  const prevChatIdRef = useRef(activeChatId);
+  const needScrollRef = useRef(false);
+  useEffect(() => {
+    if (activeChatId !== prevChatIdRef.current) {
+      prevChatIdRef.current = activeChatId;
+      needScrollRef.current = true;
+    }
+    if (needScrollRef.current && messages.length > 0 && containerRef.current) {
+      const scrollNow = () => {
+        if (containerRef.current) {
+          containerRef.current.scrollTop = containerRef.current.scrollHeight;
+        }
+      };
+      scrollNow();
+      requestAnimationFrame(scrollNow);
+      const t = setTimeout(() => { needScrollRef.current = false; }, 400);
+      return () => clearTimeout(t);
+    }
+  }, [activeChatId, messages]);
 
   useEffect(() => {
     const isStreaming = streamingText !== null;
@@ -116,11 +147,14 @@ export default function MessageList({ messages, urlMap, streamingText, onEditMes
                 ) : (
                   <div className="prose prose-sm prose-chat max-w-none text-[14px] md:text-[15px] leading-7">
                     <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
                       components={{
                         code({ node, inline, className, children, ...props }) {
                           const match = /language-(\w+)/.exec(className || '');
-                          if (!inline && match) {
-                            return <CodeBlock language={match[1]}>{children}</CodeBlock>;
+                          const childStr = typeof children === 'string' ? children : String(children || '');
+                          const isBlock = !!match || childStr.includes('\n');
+                          if (isBlock) {
+                            return <CodeBlock language={match ? match[1] : ''}>{children}</CodeBlock>;
                           }
                           return (
                             <code
@@ -138,9 +172,22 @@ export default function MessageList({ messages, urlMap, streamingText, onEditMes
                             </code>
                           );
                         },
+                        table({ children }) {
+                          return (
+                            <div className="overflow-x-auto -mx-1 px-1 my-3">
+                              <table className="w-full text-xs border-collapse">{children}</table>
+                            </div>
+                          );
+                        },
+                        th({ children }) {
+                          return <th className="border border-[var(--color-border)] px-2.5 py-1.5 text-left font-semibold whitespace-nowrap" style={{ background: 'var(--color-surface-alt)' }}>{children}</th>;
+                        },
+                        td({ children }) {
+                          return <td className="border border-[var(--color-border-light)] px-2.5 py-1.5 align-top">{children}</td>;
+                        },
                       }}
                     >
-                      {streamingText}
+                      {normalizeMarkdownTables(streamingText)}
                     </ReactMarkdown>
                   </div>
                 )}
