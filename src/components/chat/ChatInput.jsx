@@ -447,7 +447,7 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
           </div>
 
           <div className="flex items-end gap-1.5 md:gap-2">
-            <input ref={fileInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.csv,.json,.txt,.css,.html,.js,.ts,.jsx,.tsx,.py,.md,.xml,.svg" multiple hidden onChange={handleFileChange} />
+            <input ref={fileInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.csv,.json,.txt,.css,.html,.js,.ts,.jsx,.tsx,.py,.md,.xml,.svg" multiple onChange={handleFileChange} style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }} />
 
             <button
               onClick={() => fileInputRef.current?.click()}

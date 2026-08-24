@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { supabase } from './lib/supabase';
 import { streamChat } from './lib/llm';
 import { fileToDataUrl, downscaleImage } from './lib/image';
@@ -18,11 +18,12 @@ import MessageList from './components/chat/MessageList';
 import ChatInput from './components/chat/ChatInput';
 import EmptyState from './components/chat/EmptyState';
 import CapabilityWarning from './components/chat/CapabilityWarning';
-import SettingsModal from './components/settings/SettingsModal';
-import ChatSettings from './components/chat/ChatSettings';
-import SearchModal from './components/chat/SearchModal';
-import ArtifactsPanel from './components/chat/ArtifactsPanel';
-import { exportChatToMarkdown } from './components/chat/ExportButton';
+
+// Heavy modals — lazy-loaded to reduce initial bundle
+const SettingsModal = lazy(() => import('./components/settings/SettingsModal'));
+const ChatSettings = lazy(() => import('./components/chat/ChatSettings'));
+const SearchModal = lazy(() => import('./components/chat/SearchModal'));
+const ArtifactsPanel = lazy(() => import('./components/chat/ArtifactsPanel'));
 
 // Lucide Icons (Correctly Imported to prevent crashes)
 import { Loader2 } from 'lucide-react';
@@ -137,7 +138,7 @@ export default function App() {
     onExport: () => {
       if (!activeChatId) return;
       const activeChat = chats.find((c) => c.id === activeChatId);
-      if (activeChat) exportChatToMarkdown(activeChat, messages);
+      if (activeChat) import('./components/chat/ExportButton').then(m => m.exportChatToMarkdown(activeChat, messages));
     },
   });
 
@@ -582,7 +583,11 @@ export default function App() {
     }
   }
 
-  if (!authReady) return null;
+  if (!authReady) return (
+    <div className="flex h-dvh items-center justify-center" style={{ background: 'var(--color-bg)' }}>
+      <Loader2 className="animate-spin" size={32} style={{ color: 'var(--color-text-faint)' }} />
+    </div>
+  );
   if (!session) return <AuthScreen />;
 
   return (
@@ -688,36 +693,44 @@ export default function App() {
 
           {/* Dynamic Slide-out Artifact Preview Panel */}
           {activeArtifact && (
-            <ArtifactsPanel
-              artifact={activeArtifact}
-              onClose={() => setActiveArtifact(null)}
-            />
+            <Suspense fallback={null}>
+              <ArtifactsPanel
+                artifact={activeArtifact}
+                onClose={() => setActiveArtifact(null)}
+              />
+            </Suspense>
           )}
         </div>
       </div>
 
       {showSettings && (
-        <SettingsModal
-          settings={settings}
-          onSave={handleUpdateSettings}
-          onClose={() => setShowSettings(false)}
-        />
+        <Suspense fallback={null}>
+          <SettingsModal
+            settings={settings}
+            onSave={handleUpdateSettings}
+            onClose={() => setShowSettings(false)}
+          />
+        </Suspense>
       )}
 
       {showChatSettings && activeChatId && (
-        <ChatSettings
-          chat={chats.find((c) => c.id === activeChatId)}
-          messages={messages}
-          onUpdate={updateChatSettings}
-          onClose={() => setShowChatSettings(false)}
-        />
+        <Suspense fallback={null}>
+          <ChatSettings
+            chat={chats.find((c) => c.id === activeChatId)}
+            messages={messages}
+            onUpdate={updateChatSettings}
+            onClose={() => setShowChatSettings(false)}
+          />
+        </Suspense>
       )}
 
       {showSearch && (
-        <SearchModal
-          onSelectChat={selectChat}
-          onClose={() => setShowSearch(false)}
-        />
+        <Suspense fallback={null}>
+          <SearchModal
+            onSelectChat={selectChat}
+            onClose={() => setShowSearch(false)}
+          />
+        </Suspense>
       )}
     </div>
   );

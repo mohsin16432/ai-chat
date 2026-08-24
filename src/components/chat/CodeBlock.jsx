@@ -47,20 +47,9 @@ export default function CodeBlock({ language, children }) {
   // 1. Broaden compatible language identifiers
   const cleanLang = (language || '').toLowerCase().trim();
   const isArtifactCompatible = [
-    'html', 'htm', 'xhtml', 'svg', 'xml', 'css', 
+    'html', 'htm', 'xhtml', 'svg', 'xml', 'css',
     'javascript', 'js', 'jsx', 'typescript', 'ts', 'tsx'
   ].includes(cleanLang);
-
-  // --- VISUAL CONSOLE DIAGNOSTIC ---
-  console.groupCollapsed(
-    `%c💻 CodeBlock Diagnostic [${cleanLang || 'plaintext'}]`, 
-    'color: #06b6d4; font-weight: bold; font-size: 10px;'
-  );
-  console.log('%cRaw Language Prop Received:', 'color: #a3a3a3;', language);
-  console.log('%cIs Artifact Compatible?:', isArtifactCompatible ? 'color: #10b981; font-weight: bold;' : 'color: #ef4444;', isArtifactCompatible);
-  console.log('%cCode Snippet (First 60 chars):', 'color: #a3a3a3;', code.substring(0, 60) + '...');
-  console.groupEnd();
-  // ----------------------------------
 
   async function handleCopy() {
     try {
@@ -83,7 +72,6 @@ export default function CodeBlock({ language, children }) {
 
   // Fire global Custom Event to trigger the Artifact panel
   function handleOpenArtifact() {
-    console.log('%c🚀 Dispatching view-artifact event for:', 'color: #6366f1; font-weight: bold;', cleanLang);
     window.dispatchEvent(new CustomEvent('view-artifact', {
       detail: {
         language: cleanLang === 'xml' ? 'svg' : cleanLang,

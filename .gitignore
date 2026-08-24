@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Strix pentest artifacts
+strix_runs/
+.strix-venv/
+.strix-home/
