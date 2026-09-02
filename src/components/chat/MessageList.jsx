@@ -97,8 +97,8 @@ export default function MessageList({ messages, urlMap, streamingText, onEditMes
 
   return (
     <div className="flex-1 min-h-0 relative flex flex-col">
-      <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-4xl space-y-6 md:space-y-8 px-4 md:px-6 py-4 md:py-8 pb-10 md:pb-18">
+      <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-x-hidden overflow-y-auto">
+        <div className="mx-auto w-full min-w-0 max-w-4xl space-y-6 md:space-y-8 px-4 md:px-6 py-4 md:py-8 pb-10 md:pb-18">
           {messages.map((m) => (
             <MessageBubble
               key={m.id}
@@ -114,7 +114,7 @@ export default function MessageList({ messages, urlMap, streamingText, onEditMes
           ))}
 
           {streamingText !== null && (
-            <div className="flex gap-3 md:gap-3.5 w-full">
+            <div className="flex w-full min-w-0 gap-3 md:gap-3.5">
               {/* Streaming avatar */}
               <div className="relative group shrink-0 mt-0.5">
                 <div
@@ -145,7 +145,7 @@ export default function MessageList({ messages, urlMap, streamingText, onEditMes
                     <span className="text-sm">Thinking…</span>
                   </div>
                 ) : (
-                  <div className="prose prose-sm prose-chat max-w-none text-[14px] md:text-[15px] leading-7">
+                  <div className="min-w-0 overflow-hidden break-words prose prose-sm prose-chat max-w-none text-[14px] md:text-[15px] leading-7 [overflow-wrap:anywhere]">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
@@ -174,8 +174,8 @@ export default function MessageList({ messages, urlMap, streamingText, onEditMes
                         },
                         table({ children }) {
                           return (
-                            <div className="overflow-x-auto -mx-1 px-1 my-3">
-                              <table className="w-full text-xs border-collapse">{children}</table>
+                            <div className="max-w-full overflow-x-auto -mx-1 px-1 my-3">
+                              <table className="w-max max-w-full text-xs border-collapse">{children}</table>
                             </div>
                           );
                         },

@@ -179,8 +179,8 @@ export default function MessageBubble({
   // --- USER MESSAGE: subtle right-aligned pill ---
   if (isUser) {
     return (
-      <div className="group flex w-full justify-end">
-        <div className="flex flex-col items-end gap-1.5 max-w-[92%] md:max-w-[70%]">
+      <div className="group flex w-full min-w-0 justify-end">
+        <div className="flex flex-col items-end gap-1.5 min-w-0 w-full max-w-[92%] md:max-w-[70%]">
           {isEditing ? (
             <div className="flex flex-col gap-2 min-w-[240px] w-full">
               <textarea
@@ -228,7 +228,7 @@ export default function MessageBubble({
                 You
               </div>
               <div
-                className="rounded-[24px] px-4 py-3 text-[14px] md:text-sm leading-relaxed"
+                className="w-full min-w-0 overflow-hidden break-words rounded-[24px] px-4 py-3 text-[14px] md:text-sm leading-relaxed"
                 style={{
                   background: 'color-mix(in srgb, var(--color-surface-alt) 88%, var(--color-accent) 12%)',
                   color: 'var(--color-text)',
@@ -236,7 +236,7 @@ export default function MessageBubble({
                   boxShadow: 'inset 0 1px 0 color-mix(in srgb, white 7%, transparent)',
                 }}
               >
-                <div className="prose prose-sm prose-chat max-w-none">
+                <div className="min-w-0 overflow-hidden break-words prose prose-sm prose-chat max-w-none [overflow-wrap:anywhere]">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
@@ -264,8 +264,8 @@ export default function MessageBubble({
                       },
                       table({ children }) {
                         return (
-                          <div className="overflow-x-auto -mx-1 px-1 my-3">
-                            <table className="w-full text-xs border-collapse">{children}</table>
+                          <div className="max-w-full overflow-x-auto -mx-1 px-1 my-3">
+                            <table className="w-max max-w-full text-xs border-collapse">{children}</table>
                           </div>
                         );
                       },
@@ -345,7 +345,7 @@ export default function MessageBubble({
 
   // --- ASSISTANT MESSAGE: clean flowing text, no bubble ---
   return (
-    <div className="group flex w-full justify-start">
+    <div className="group flex w-full min-w-0 justify-start">
       <div className="flex gap-3 md:gap-3.5 w-full">
         
         {/* Avatar — small, subtle */}
@@ -428,8 +428,8 @@ export default function MessageBubble({
                 },
                 table({ children }) {
                   return (
-                    <div className="overflow-x-auto -mx-1 px-1 my-3">
-                      <table className="w-full text-xs border-collapse">{children}</table>
+                    <div className="max-w-full overflow-x-auto -mx-1 px-1 my-3">
+                      <table className="w-max max-w-full text-xs border-collapse">{children}</table>
                     </div>
                   );
                 },
