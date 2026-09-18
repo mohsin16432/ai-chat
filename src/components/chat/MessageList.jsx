@@ -149,6 +149,23 @@ export default function MessageList({ messages, urlMap, streamingText, onEditMes
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
+a({ href, children, ...props }) {
+                        const isExternal = /^(https?:)?\/\//i.test(href || '');
+                        if (!isExternal) {
+                          return <a href={href} {...props}>{children}</a>;
+                        }
+                        return (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline underline-offset-2 hover:opacity-80"
+                            {...props}
+                          >
+                            {children}
+                          </a>
+                        );
+                      },
                         code({ node, inline, className, children, ...props }) {
                           const match = /language-(\w+)/.exec(className || '');
                           const childStr = typeof children === 'string' ? children : String(children || '');
