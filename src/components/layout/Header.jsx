@@ -1,8 +1,8 @@
-import { Menu, SlidersHorizontal, Sun, Moon } from 'lucide-react';
+import { Menu, SlidersHorizontal, Sun, Moon, GitCompareArrows } from 'lucide-react';
 import ModelPicker from '../chat/ModelPicker';
 import ExportButton from '../chat/ExportButton';
 
-export default function Header({ settings, chats, activeChatId, messages, onChangeModel, onMenuClick, onChatSettings, onToggleTheme }) {
+export default function Header({ settings, chats, activeChatId, messages, onChangeModel, onMenuClick, onChatSettings, onToggleTheme, onCompare }) {
   const activeChat = chats.find((c) => c.id === activeChatId);
   const isLight = settings?.theme === 'light';
   const activeChatTitle = activeChat?.title && activeChat.title.trim() && activeChat.title !== 'New chat'
@@ -93,6 +93,14 @@ export default function Header({ settings, chats, activeChatId, messages, onChan
               title={isLight ? 'Switch to dark' : 'Switch to light'}
             >
               {isLight ? <Moon size={16} /> : <Sun size={16} />}
+            </button>
+            <button
+              onClick={onCompare}
+              className="p-2 rounded-xl transition-colors poe-control"
+              style={{ color: 'var(--color-text-muted)' }}
+              title="Compare models"
+            >
+              <GitCompareArrows size={16} />
             </button>
             {activeChatId && (
               <>

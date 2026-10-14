@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Settings, X, RotateCcw } from 'lucide-react';
+import { getContextOpts, setContextOpts } from '../../lib/contextMgmt';
 
 const DEFAULTS = {
   system_prompt: '',
@@ -13,6 +14,7 @@ export default function ChatSettings({ chat, messages, onUpdate, onClose }) {
     temperature: chat?.temperature ?? DEFAULTS.temperature,
     top_p: chat?.top_p ?? DEFAULTS.top_p,
   });
+  const [contextOpts, setContextOptsState] = useState(() => getContextOpts(chat?.id));
 
   useEffect(() => {
     setDraft({
@@ -29,6 +31,12 @@ export default function ChatSettings({ chat, messages, onUpdate, onClose }) {
 
   function resetToDefaults() {
     setDraft({ ...DEFAULTS });
+  }
+
+  function updateContext(patch) {
+    const next = { ...contextOpts, ...patch };
+    setContextOptsState(next);
+    setContextOpts(chat.id, next);
   }
 
   return (
@@ -143,14 +151,15 @@ export default function ChatSettings({ chat, messages, onUpdate, onClose }) {
 
         {/* Token Usage Summary */}
         {messages && messages.length > 0 && (() => {
-          const totals = messages.reduce((acc, m) => {
+          let prompt = 0;
+          let completion = 0;
+          messages.forEach((m) => {
             if (m.usage) {
-              acc.prompt += m.usage.prompt_tokens || 0;
-              acc.completion += m.usage.completion_tokens || 0;
+              prompt += m.usage.prompt_tokens || 0;
+              completion += m.usage.completion_tokens || 0;
             }
-            return acc;
-          }, { prompt: 0, completion: 0 });
-          const total = totals.prompt + totals.completion;
+          });
+          const total = prompt + completion;
           if (total === 0) return null;
           return (
             <div className="rounded-xl p-3 space-y-1.5" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
@@ -159,11 +168,11 @@ export default function ChatSettings({ chat, messages, onUpdate, onClose }) {
               </label>
               <div className="flex justify-between text-xs" style={{ color: 'var(--color-text-faint)' }}>
                 <span>Prompt</span>
-                <span className="font-mono">{totals.prompt.toLocaleString()}</span>
+                <span className="font-mono">{prompt.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-xs" style={{ color: 'var(--color-text-faint)' }}>
                 <span>Completion</span>
-                <span className="font-mono">{totals.completion.toLocaleString()}</span>
+                <span className="font-mono">{completion.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-xs pt-1.5 border-t" style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)' }}>
                 <span className="font-medium">Total</span>
@@ -172,6 +181,45 @@ export default function ChatSettings({ chat, messages, onUpdate, onClose }) {
             </div>
           );
         })()}
+
+        {/* Context management */}
+        <div className="rounded-xl p-3 space-y-2.5" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
+              Auto-compact history
+            </label>
+            <button
+              onClick={() => updateContext({ autoCompact: !contextOpts.autoCompact })}
+              className="relative w-9 h-5 rounded-full transition-colors"
+              style={{ background: contextOpts.autoCompact ? 'var(--color-accent)' : 'var(--color-surface-hover)', border: '1px solid var(--color-border)' }}
+              title="Drop oldest messages past a window to stay within context limits"
+            >
+              <span
+                className="absolute top-0.5 w-4 h-4 rounded-full transition-all"
+                style={{ background: 'white', left: contextOpts.autoCompact ? '18px' : '2px' }}
+              />
+            </button>
+          </div>
+          <div className={`space-y-1.5 ${contextOpts.autoCompact ? '' : 'opacity-40'}`}>
+            <div className="flex items-center justify-between">
+              <span className="text-xs" style={{ color: 'var(--color-text-faint)' }}>Recent messages to keep</span>
+              <span className="text-xs font-mono" style={{ color: 'var(--color-accent-hover)' }}>{contextOpts.maxMessages}</span>
+            </div>
+            <input
+              type="range"
+              min="4"
+              max="50"
+              step="2"
+              disabled={!contextOpts.autoCompact}
+              value={contextOpts.maxMessages}
+              onChange={(e) => updateContext({ maxMessages: parseInt(e.target.value, 10) })}
+              className="w-full accent-indigo-500"
+            />
+            <p className="text-xs" style={{ color: 'var(--color-text-faint)' }}>
+              When on, only the most recent messages are sent to the model (stored history is never deleted).
+            </p>
+          </div>
+        </div>
 
         {/* Save */}
         <button

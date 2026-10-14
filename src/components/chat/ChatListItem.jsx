@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Pencil, Trash2, MessageSquare, Check, Pin, PinOff, MoreHorizontal } from 'lucide-react';
+import { Pencil, Trash2, MessageSquare, Check, Pin, PinOff, MoreHorizontal, Folder, Copy } from 'lucide-react';
 
-export default function ChatListItem({ chat, isActive, onSelect, onRename, onDelete, onTogglePin, mobile = false }) {
+export default function ChatListItem({ chat, isActive, onSelect, onRename, onDelete, onTogglePin, mobile = false, onDuplicate, folders = [], currentFolder, onAssignFolder, onNewFolder }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(chat.title);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [showFolderMenu, setShowFolderMenu] = useState(false);
 
   useEffect(() => setDraft(chat.title), [chat.title]);
 
@@ -195,6 +196,78 @@ export default function ChatListItem({ chat, isActive, onSelect, onRename, onDel
                 <Trash2 size={14} />
                 {isConfirmingDelete ? 'Confirm delete' : 'Delete'}
               </button>
+
+              {onAssignFolder && (
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowFolderMenu((prev) => !prev);
+                    }}
+                    className="inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-[13px]"
+                    style={{
+                      color: showFolderMenu ? '#c9dcff' : '#f5f7fb',
+                      background: showFolderMenu ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                    title="Move to folder"
+                  >
+                    <Folder size={14} />
+                    Folder
+                  </button>
+                  {showFolderMenu && (
+                    <div
+                      className="absolute left-0 top-full mt-1 z-20 w-48 rounded-2xl p-1.5 space-y-0.5"
+                      style={{ background: '#1d2230', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 30px rgba(0,0,0,0.4)' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => { onAssignFolder(chat.id, null); setShowFolderMenu(false); }}
+                        className="w-full flex items-center gap-2 rounded-xl px-2.5 py-2 text-[13px] text-left"
+                        style={{ color: !currentFolder ? '#c9dcff' : '#f5f7fb', background: !currentFolder ? 'rgba(255,255,255,0.08)' : 'transparent' }}
+                      >
+                        Unfiled
+                      </button>
+                      {folders.map((f) => (
+                        <button
+                          key={f.id}
+                          onClick={() => { onAssignFolder(chat.id, f.id); setShowFolderMenu(false); }}
+                          className="w-full flex items-center gap-2 rounded-xl px-2.5 py-2 text-[13px] text-left"
+                          style={{ color: currentFolder === f.id ? '#c9dcff' : '#f5f7fb', background: currentFolder === f.id ? 'rgba(255,255,255,0.08)' : 'transparent' }}
+                        >
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: f.color }} />
+                          <span className="truncate">{f.name}</span>
+                        </button>
+                      ))}
+                      {onNewFolder && (
+                        <button
+                          onClick={() => { onNewFolder(); setShowFolderMenu(false); }}
+                          className="w-full flex items-center gap-2 rounded-xl px-2.5 py-2 text-[13px] text-left"
+                          style={{ color: 'rgba(245,247,251,0.7)' }}
+                        >
+                          + New folder
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {onDuplicate && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDuplicate(chat.id);
+                    setActionsOpen(false);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-[13px]"
+                  style={{ color: '#f5f7fb', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  title="Duplicate chat"
+                >
+                  <Copy size={14} />
+                  Duplicate
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -251,6 +324,13 @@ export default function ChatListItem({ chat, isActive, onSelect, onRename, onDel
           >
             {displayTitle}
           </span>
+          {currentFolder && (
+            <span
+              className="shrink-0 w-2 h-2 rounded-full"
+              style={{ background: currentFolder.color }}
+              title={currentFolder.name}
+            />
+          )}
           {chat.pinned && (
             <span
               className="shrink-0 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium"

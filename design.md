@@ -183,6 +183,27 @@ Defined in [src/index.css](src/index.css). **Always use these variables — neve
 - Console diagnostics: styled `console.groupCollapsed` logs for LLM payloads, code blocks, skill installs
 - PWA shell: `manifest.json`, service worker, icons in `public/`
 
+### 4.13 Token Usage & Cost Estimation
+- Per-assistant-message token count badge (`MessageBubble`), sourced from the provider `usage` object.
+- Per-chat token totals in `ChatSettings`.
+
+> Note: monetary cost estimates were intentionally removed. Provider pricing varies by endpoint, changes frequently, and differs for reasoning/cached tokens, so a static price table cannot be accurate across the ~400 supported models.
+
+### 4.14 Personas (reusable assistants)
+- Saved assistants with system prompt + model + temperature + top_p + color; `PersonasModal`; "Start chat" seeds a new chat.
+
+### 4.15 Chat Folders
+- localStorage-backed folders; assign chats via item action menu; filter chips in sidebar; color dots on items.
+
+### 4.16 Multi-Model Comparison
+- `CompareModal`: one prompt → 2–3 models side-by-side, parallel streaming, per-column copy.
+
+### 4.17 Context Management
+- Per-chat auto-compact window in `ChatSettings`; trims history sent to the model without deleting stored messages.
+
+### 4.18 Duplicate Chat
+- One-click deep copy of a chat (settings + messages) from the item action menu.
+
 ---
 
 ## 5. Data Model (Supabase)
@@ -194,6 +215,23 @@ Defined in [src/index.css](src/index.css). **Always use these variables — neve
 **Storage bucket `media`**: images, path `{user_id}/{uuid}.{ext}`, signed URLs
 
 **localStorage**: `llm-settings` (baseUrl, apiKey, models[], defaultModelId, searchProvider, searchApiKey), `ai-chat-skills`
+**localStorage (org features, client-only)**: `ai-chat-folders` (`{ folders: [{id,name,color}], assignments: {chatId: folderId} }`), `ai-chat-personas` (array of reusable assistants), `ai-chat-context-opts` (`{ chatId: { autoCompact, maxMessages } }`)
+
+### 5.1 Client-only org features (no DB schema changes)
+Folders, personas, and per-chat context options are stored in `localStorage` (mirroring the existing `settings`/`skills` pattern) because the Supabase `chats` table cannot be altered from the client. `useOrgData.js` subscribes to `folders-changed` / `personas-changed` window events so the sidebar and modals stay in sync.
+
+- **Folders** (`lib/folders.js`): create / rename / delete / assign chats; sidebar filter chips (All / Unfiled / per-folder). Folder color dot shown on list items.
+- **Personas** (`lib/personas.js` + `PersonasModal`): reusable assistant = name + system prompt + model + temperature + top_p + color. "Start chat" seeds a new chat with those settings.
+- **Context options** (`lib/contextMgmt.js`): per-chat auto-compact window; when on, only the most recent N messages are sent to the model (stored history is never deleted — applied in `sendMessage` / `sendMessageFromContent`).
+
+### 5.2 Token usage (extends existing `usage`)
+Token counts come directly from each provider's `usage` response (prompt/completion tokens). Shown per assistant message in `MessageBubble` and as per-chat totals in `ChatSettings`. No monetary cost is estimated.
+
+### 5.3 Multi-model comparison
+`CompareModal` streams a single prompt to 2–3 selected models in parallel, rendering results side-by-side (copy per column, token totals). Reuses `streamChat` + `MessageBubble.normalizeMarkdownTables`.
+
+### 5.4 Duplicate chat
+`App.handleDuplicateChat` deep-copies a chat's row + messages into a new chat (keeps attachments/usage).
 
 ---
 

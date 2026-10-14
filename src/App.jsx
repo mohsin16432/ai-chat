@@ -9,6 +9,9 @@ import { useMessages } from './hooks/useMessages';
 import { useStreaming } from './hooks/useStreaming';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { loadSkills } from './lib/skills';
+import { useFoldersState, usePersonasState } from './hooks/useOrgData';
+import { createFolder } from './lib/folders';
+import { getContextOpts, compactHistory } from './lib/contextMgmt';
 
 // Core layout & view components
 import AuthScreen from './components/auth/AuthScreen';
@@ -24,6 +27,8 @@ const SettingsModal = lazy(() => import('./components/settings/SettingsModal'));
 const ChatSettings = lazy(() => import('./components/chat/ChatSettings'));
 const SearchModal = lazy(() => import('./components/chat/SearchModal'));
 const ArtifactsPanel = lazy(() => import('./components/chat/ArtifactsPanel'));
+const PersonasModal = lazy(() => import('./components/settings/PersonasModal'));
+const CompareModal = lazy(() => import('./components/chat/CompareModal'));
 
 // Lucide Icons (Correctly Imported to prevent crashes)
 import { Loader2 } from 'lucide-react';
@@ -34,16 +39,22 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showChatSettings, setShowChatSettings] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showPersonas, setShowPersonas] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.innerWidth >= 768;
   });
+
+  const [folderFilter, setFolderFilter] = useState(null); // null = all
   
   // Phase 3 & Phase 5 States
   const [activeArtifact, setActiveArtifact] = useState(null);
   const [searchingWeb, setSearchingWeb] = useState(false);
 
   const { settings, updateSettings } = useSettings();
+  const folders = useFoldersState();
+  const personas = usePersonasState();
 
   // --- PERSISTENCE & DEFAULT CLEANUP LOGIC ---
   // If your useSettings hook initializes with 2 default models, we intercept and sanitize them here.
@@ -173,6 +184,71 @@ export default function App() {
     await deleteChat(chatId);
     removeChatFromCache(chatId);
     if (activeChatId === chatId) clearMessages();
+  }
+
+  // Duplicate a chat: copy its settings + messages into a new chat.
+  async function handleDuplicateChat(chatId) {
+    if (!session) return;
+    try {
+      const src = chats.find((c) => c.id === chatId);
+      if (!src) return;
+
+      const { data: newChat, error: chatErr } = await supabase
+        .from('chats')
+        .insert({
+          user_id: session.user.id,
+          title: (src.title || 'Untitled chat') + ' (copy)',
+          model: src.model ?? null,
+          system_prompt: src.system_prompt ?? null,
+          temperature: src.temperature ?? null,
+          top_p: src.top_p ?? null,
+        })
+        .select()
+        .single();
+      if (chatErr) throw chatErr;
+
+      const { data: srcMessages } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('chat_id', chatId)
+        .order('created_at', { ascending: true });
+
+      if (srcMessages && srcMessages.length > 0) {
+        const copies = srcMessages.map((m) => ({
+          chat_id: newChat.id,
+          role: m.role,
+          content: m.content,
+          attachments: m.attachments ?? null,
+          model: m.model ?? null,
+          usage: m.usage ?? null,
+        }));
+        const { error: msgErr } = await supabase.from('messages').insert(copies);
+        if (msgErr) throw msgErr;
+      }
+
+      setChats((prev) => [newChat, ...prev]);
+    } catch (err) {
+      console.error('Duplicate chat failed:', err);
+      setError(err.message || 'Failed to duplicate chat');
+    }
+  }
+
+  // Start a new chat seeded with a persona's system prompt + settings.
+  async function handleStartWithPersona(persona) {
+    setShowPersonas(false);
+    const chat = await createChat();
+    if (!chat) return;
+    initChatMessages(chat.id);
+    const patch = {
+      system_prompt: persona.systemPrompt || null,
+      temperature: persona.temperature ?? 0.7,
+      top_p: persona.top_p ?? 1.0,
+    };
+    if (persona.model) patch.model = persona.model;
+    await updateChatSettings(chat.id, patch);
+    setChats((prev) =>
+      prev.map((c) => (c.id === chat.id ? { ...c, ...patch } : c))
+    );
   }
 
   function handleChangeModel(modelId) {
@@ -306,7 +382,8 @@ export default function App() {
       const historyPaths = history.flatMap((m) => m.attachments || []);
       const historyUrlMap = historyPaths.length ? await resolveUrls(historyPaths) : {};
 
-      const messagesToConvert = history.slice(0, -1);
+      const compactedHistory = compactHistory(history, getContextOpts(chatId));
+      const messagesToConvert = compactedHistory.slice(0, -1);
 
       const llmMessages = [
         ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
@@ -488,7 +565,7 @@ export default function App() {
         systemPrompt = systemPrompt ? `${systemPrompt}\n\n${skillDirective}` : skillDirective;
       }
 
-      const history = (messagesCache.current.get(chatId) || []).slice(0, -1);
+      const history = compactHistory(messagesCache.current.get(chatId) || [], getContextOpts(chatId)).slice(0, -1);
       const historyPaths = history.flatMap((m) => m.attachments || []);
       const historyUrlMap = historyPaths.length ? await resolveUrls(historyPaths) : {};
 
@@ -601,12 +678,23 @@ export default function App() {
           onRenameChat={renameChat}
           onDeleteChat={handleDeleteChat}
           onTogglePin={togglePin}
+          onDuplicate={handleDuplicateChat}
+          folders={folders.folders}
+          assignments={folders.assignments}
+          onAssignFolder={folders.setFolder}
+          onNewFolder={() => {
+            const name = window.prompt('Folder name');
+            if (name && name.trim()) createFolder(name, null);
+          }}
+          onOpenPersonas={() => setShowPersonas(true)}
           onOpenSettings={() => setShowSettings(true)}
           onSignOut={() => supabase.auth.signOut()}
           email={session.user.email}
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           onSearch={() => setShowSearch(true)}
+          folderFilter={folderFilter}
+          onFilterFolder={setFolderFilter}
         />
 
         {/* Main split-pane wrapper context with safe height boundaries */}
@@ -623,6 +711,7 @@ export default function App() {
               onMenuClick={() => setSidebarOpen((prev) => !prev)}
               onChatSettings={() => setShowChatSettings(true)}
               onToggleTheme={handleToggleTheme}
+              onCompare={() => setShowCompare(true)}
             />
 
             {activeChatId ? (
@@ -729,6 +818,26 @@ export default function App() {
           <SearchModal
             onSelectChat={selectChat}
             onClose={() => setShowSearch(false)}
+          />
+        </Suspense>
+      )}
+
+      {showPersonas && (
+        <Suspense fallback={null}>
+          <PersonasModal
+            models={settings.models || []}
+            defaultModelId={settings.defaultModelId}
+            onClose={() => setShowPersonas(false)}
+            onUse={handleStartWithPersona}
+          />
+        </Suspense>
+      )}
+
+      {showCompare && (
+        <Suspense fallback={null}>
+          <CompareModal
+            settings={settings}
+            onClose={() => setShowCompare(false)}
           />
         </Suspense>
       )}

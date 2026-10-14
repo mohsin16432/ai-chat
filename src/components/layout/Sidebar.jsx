@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import ChatListItem from '../chat/ChatListItem';
-import { Settings as SettingsIcon, LogOut, X, Search, SquarePen, MessageSquare, ArrowRight } from 'lucide-react';
+import { Settings as SettingsIcon, LogOut, X, Search, SquarePen, MessageSquare, ArrowRight, FolderPlus, Sparkles, Layers } from 'lucide-react';
 import { ArrowLeft, House, History } from 'lucide-react';
 import { useChatSearch } from '../../hooks/useChatSearch';
 
@@ -12,6 +12,14 @@ export default function Sidebar({
   onRenameChat,
   onDeleteChat,
   onTogglePin,
+  onDuplicate,
+  folders = [],
+  assignments = {},
+  onAssignFolder,
+  onNewFolder,
+  onOpenPersonas,
+  folderFilter,
+  onFilterFolder,
   onOpenSettings,
   onSignOut,
   email,
@@ -184,6 +192,11 @@ export default function Sidebar({
                     onRename={onRenameChat}
                     onDelete={onDeleteChat}
                     onTogglePin={onTogglePin}
+                    onDuplicate={onDuplicate}
+                    folders={folders}
+                    currentFolder={folders.find((f) => f.id === assignments[c.id]) || null}
+                    onAssignFolder={onAssignFolder}
+                    onNewFolder={onNewFolder}
                     mobile
                   />
                 ))
@@ -358,20 +371,94 @@ export default function Sidebar({
                 No conversations yet
               </p>
             )}
-            {chats.map((c) => (
-              <ChatListItem
-                key={c.id}
-                chat={c}
-                isActive={c.id === activeChatId}
-                onSelect={(id) => {
-                  onSelectChat(id);
-                  closeIfMobile();
-                }}
-                onRename={onRenameChat}
-                onDelete={onDeleteChat}
-                onTogglePin={onTogglePin}
-              />
-            ))}
+            {(() => {
+              const filtered =
+                folderFilter == null
+                  ? chats
+                  : folderFilter === '__none__'
+                    ? chats.filter((c) => !assignments[c.id])
+                    : chats.filter((c) => assignments[c.id] === folderFilter);
+              return filtered.map((c) => (
+                <ChatListItem
+                  key={c.id}
+                  chat={c}
+                  isActive={c.id === activeChatId}
+                  onSelect={(id) => {
+                    onSelectChat(id);
+                    closeIfMobile();
+                  }}
+                  onRename={onRenameChat}
+                  onDelete={onDeleteChat}
+                  onTogglePin={onTogglePin}
+                  onDuplicate={onDuplicate}
+                  folders={folders}
+                  currentFolder={folders.find((f) => f.id === assignments[c.id]) || null}
+                  onAssignFolder={onAssignFolder}
+                  onNewFolder={onNewFolder}
+                />
+              ));
+            })()}
+          </div>
+
+          {/* Folder filter chips */}
+          {folders.length > 0 && (
+            <div className="px-3 pb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Layers size={13} style={{ color: 'var(--color-text-faint)' }} />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--color-text-faint)' }}>Folders</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => onFilterFolder(null)}
+                  className="rounded-full px-2.5 py-1 text-[11px]"
+                  style={{
+                    background: folderFilter == null ? 'var(--color-surface-active)' : 'var(--color-surface)',
+                    color: folderFilter == null ? 'var(--color-text)' : 'var(--color-text-muted)',
+                    border: '1px solid var(--color-border)',
+                  }}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => onFilterFolder('__none__')}
+                  className="rounded-full px-2.5 py-1 text-[11px]"
+                  style={{
+                    background: folderFilter === '__none__' ? 'var(--color-surface-active)' : 'var(--color-surface)',
+                    color: folderFilter === '__none__' ? 'var(--color-text)' : 'var(--color-text-muted)',
+                    border: '1px solid var(--color-border)',
+                  }}
+                >
+                  Unfiled
+                </button>
+                {folders.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => onFilterFolder(f.id)}
+                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px]"
+                    style={{
+                      background: folderFilter === f.id ? 'var(--color-surface-active)' : 'var(--color-surface)',
+                      color: folderFilter === f.id ? 'var(--color-text)' : 'var(--color-text-muted)',
+                      border: `1px solid ${folderFilter === f.id ? f.color : 'var(--color-border)'}`,
+                    }}
+                  >
+                    <span className="w-2 h-2 rounded-full" style={{ background: f.color }} />
+                    {f.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Personas button */}
+          <div className="px-3 pb-2">
+            <button
+              onClick={onOpenPersonas}
+              className="w-full flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-medium transition-colors"
+              style={{ background: 'var(--color-surface)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }}
+            >
+              <Sparkles size={14} style={{ color: 'var(--color-accent-hover)' }} />
+              Personas
+            </button>
           </div>
 
           {/* Bottom section */}

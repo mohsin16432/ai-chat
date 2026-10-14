@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm';
 //   "| header | |---|---| | body | | body2 |"
 // remark-gfm requires each row on its own line. This splits compressed
 // table rows by inserting newlines at row boundaries ("| |" → "|\n|").
-function normalizeMarkdownTables(content) {
+export function normalizeMarkdownTables(content) {
   if (!content || !content.includes('|')) return content;
   let result = content;
   // Split header from separator: "| |---" → "|\n|---"
@@ -569,7 +569,11 @@ a({ href, children, ...props }) {
               </button>
             )}
             {message.usage && (message.usage.prompt_tokens || message.usage.completion_tokens) && (
-              <span className="text-[10px] ml-1" style={{ color: 'var(--color-text-faint)' }} title={`Prompt: ${message.usage.prompt_tokens || 0} tokens\nCompletion: ${message.usage.completion_tokens || 0} tokens`}>
+              <span
+                className="text-[10px] ml-1"
+                style={{ color: 'var(--color-text-faint)' }}
+                title={`Prompt: ${message.usage.prompt_tokens || 0} tokens\nCompletion: ${message.usage.completion_tokens || 0} tokens`}
+              >
                 {(message.usage.prompt_tokens || 0) + (message.usage.completion_tokens || 0)} tok
               </span>
             )}
