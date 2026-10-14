@@ -126,7 +126,7 @@ export default function App() {
     deleteMessagesAfter, updateMessage, updateMessageFeedback,
   } = useMessages();
 
-  const { streamingText, sending, startStreaming, onToken, stopStreaming, cancelStreaming } = useStreaming();
+  const { streamingText, streamStats, sending, startStreaming, onToken, stopStreaming, cancelStreaming } = useStreaming();
 
   const streamingTextRef = useRef('');
   const genStartRef = useRef(0);
@@ -504,6 +504,7 @@ export default function App() {
 
     setError('');
     const signal = startStreaming();
+    let sentModelId = null;
 
     try {
       let chatId = activeChatId;
@@ -660,7 +661,7 @@ export default function App() {
       console.log('%cFormatted Messages Payload Array:', 'color: #a3a3a3;', llmMessages);
       console.groupEnd();
 
-      const sentModelId = currentModel?.id || settings.defaultModelId;
+      sentModelId = currentModel?.id || settings.defaultModelId;
 
       const { text: full, usage } = await streamChat({
         baseUrl: settings.baseUrl,
