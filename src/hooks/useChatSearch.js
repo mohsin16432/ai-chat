@@ -70,6 +70,7 @@ export function useChatSearch(query, { enabled = true, delay = 300 } = {}) {
             preview: message.content.substring(0, 150),
             role: message.role,
             date: message.created_at,
+            messageId: message.id,
             alsoInTitles: titleChatIds.has(message.chat_id),
           });
         });

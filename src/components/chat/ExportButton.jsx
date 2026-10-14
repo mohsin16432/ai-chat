@@ -1,5 +1,40 @@
 import { Download } from 'lucide-react';
 
+export function exportChatToJson(chat, messages) {
+  if (!chat || messages.length === 0) return;
+  const payload = {
+    app: 'ai-chat',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    chat: {
+      id: chat.id,
+      title: chat.title || '',
+      model: chat.model ?? null,
+      system_prompt: chat.system_prompt ?? null,
+      temperature: chat.temperature ?? null,
+      top_p: chat.top_p ?? null,
+    },
+    messages: messages.map((m) => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      attachments: m.attachments ?? null,
+      model: m.model ?? null,
+      usage: m.usage ?? null,
+      created_at: m.created_at ?? null,
+    })),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${(chat.title || 'chat').replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '-').toLowerCase() || 'chat'}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export function exportChatToMarkdown(chat, messages) {
   if (!chat || messages.length === 0) return;
 

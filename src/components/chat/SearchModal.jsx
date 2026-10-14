@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, X, MessageSquare, ArrowRight } from 'lucide-react';
 import { useChatSearch } from '../../hooks/useChatSearch';
 
-export default function SearchModal({ onSelectChat, onClose }) {
+export default function SearchModal({ onSelectChat, onJumpToMessage, activeChatId, onClose }) {
   const [query, setQuery] = useState('');
   const inputRef = useRef(null);
   const { results, searching } = useChatSearch(query);
@@ -92,6 +92,13 @@ export default function SearchModal({ onSelectChat, onClose }) {
             <button
               key={`${r.type}-${r.chatId}-${i}`}
               onClick={() => {
+                // If this is a message match in the chat we're already viewing,
+                // jump straight to it instead of reselecting the chat.
+                if (r.type === 'message' && r.chatId === activeChatId && onJumpToMessage) {
+                  onJumpToMessage(r.chatId, r.messageId);
+                  onClose();
+                  return;
+                }
                 onSelectChat(r.chatId);
                 onClose();
               }}

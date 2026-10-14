@@ -74,3 +74,11 @@ export function folderById(folderId) {
 }
 
 export { FOLDER_COLORS };
+
+// Persist a full folders state object and notify listeners (used by sync).
+export function saveFolders(state) {
+  save({
+    folders: Array.isArray(state.folders) ? state.folders : [],
+    assignments: state.assignments || {},
+  });
+}

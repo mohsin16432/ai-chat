@@ -179,7 +179,7 @@ export default function MessageBubble({
   // --- USER MESSAGE: subtle right-aligned pill ---
   if (isUser) {
     return (
-      <div className="group flex w-full min-w-0 justify-end">
+      <div id={`msg-${id}`} className="group flex w-full min-w-0 justify-end scroll-mt-24">
         <div className="flex flex-col items-end gap-1.5 min-w-0 w-full max-w-[92%] md:max-w-[70%]">
           {isEditing ? (
             <div className="flex flex-col gap-2 min-w-[240px] w-full">
@@ -362,7 +362,7 @@ a({ href, children, ...props }) {
 
   // --- ASSISTANT MESSAGE: clean flowing text, no bubble ---
   return (
-    <div className="group flex w-full min-w-0 justify-start">
+    <div id={`msg-${id}`} className="group flex w-full min-w-0 justify-start scroll-mt-24">
       <div className="flex gap-3 md:gap-3.5 w-full">
         
         {/* Avatar — small, subtle */}
@@ -572,9 +572,12 @@ a({ href, children, ...props }) {
               <span
                 className="text-[10px] ml-1"
                 style={{ color: 'var(--color-text-faint)' }}
-                title={`Prompt: ${message.usage.prompt_tokens || 0} tokens\nCompletion: ${message.usage.completion_tokens || 0} tokens`}
+                title={`Prompt: ${message.usage.prompt_tokens || 0} tokens\nCompletion: ${message.usage.completion_tokens || 0} tokens${message.usage.gen_ms ? `\nGeneration: ${(message.usage.gen_ms / 1000).toFixed(2)} s` : ''}`}
               >
                 {(message.usage.prompt_tokens || 0) + (message.usage.completion_tokens || 0)} tok
+                {message.usage.gen_ms && (message.usage.completion_tokens || 0) > 0 && (
+                  <span> · ~{Math.round((message.usage.completion_tokens / (message.usage.gen_ms / 1000)))} tok/s</span>
+                )}
               </span>
             )}
           </div>

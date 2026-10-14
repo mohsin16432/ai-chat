@@ -225,6 +225,16 @@ textarea,
   animation: fade-in 0.2s ease-out;
 }
 
+/* Flash highlight when jumping to a message from search */
+@keyframes msg-flash {
+  0% { background: color-mix(in srgb, var(--color-accent) 28%, transparent); }
+  100% { background: transparent; }
+}
+.msg-flash {
+  border-radius: 1rem;
+  animation: msg-flash 1.4s ease-out;
+}
+
 .app-stage {
   background:
     radial-gradient(circle at top right, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 30%),

@@ -29,6 +29,8 @@ const SearchModal = lazy(() => import('./components/chat/SearchModal'));
 const ArtifactsPanel = lazy(() => import('./components/chat/ArtifactsPanel'));
 const PersonasModal = lazy(() => import('./components/settings/PersonasModal'));
 const CompareModal = lazy(() => import('./components/chat/CompareModal'));
+const ImportExportModal = lazy(() => import('./components/chat/ImportExportModal'));
+const PresetsModal = lazy(() => import('./components/chat/PresetsModal'));
 
 // Lucide Icons (Correctly Imported to prevent crashes)
 import { Loader2 } from 'lucide-react';
@@ -41,10 +43,14 @@ export default function App() {
   const [showSearch, setShowSearch] = useState(false);
   const [showPersonas, setShowPersonas] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
+  const [showImportExport, setShowImportExport] = useState(false);
+  const [showPresets, setShowPresets] = useState(false);
+  const [syncState, setSyncState] = useState({ busy: false, msg: '' });
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.innerWidth >= 768;
   });
+  const messageListRef = useRef(null);
 
   const [folderFilter, setFolderFilter] = useState(null); // null = all
   
@@ -123,6 +129,7 @@ export default function App() {
   const { streamingText, sending, startStreaming, onToken, stopStreaming, cancelStreaming } = useStreaming();
 
   const streamingTextRef = useRef('');
+  const genStartRef = useRef(0);
 
   function handleToken(text) {
     streamingTextRef.current = text;
@@ -147,10 +154,9 @@ export default function App() {
     onChatSettings: () => activeChatId && setShowChatSettings(true),
     onToggleSidebar: () => setSidebarOpen((p) => !p),
     onExport: () => {
-      if (!activeChatId) return;
-      const activeChat = chats.find((c) => c.id === activeChatId);
-      if (activeChat) import('./components/chat/ExportButton').then(m => m.exportChatToMarkdown(activeChat, messages));
+      setShowImportExport(true);
     },
+    onPresets: () => setShowPresets(true),
   });
 
   // Subscribe to global View Artifact trigger events
@@ -173,6 +179,20 @@ export default function App() {
         prev.map((c) => (c.id === chatId ? { ...c, model: chatData.model } : c))
       );
     }
+  }
+
+  // Jump from search results to a specific message: ensure the chat is loaded,
+  // then scroll to the message anchor in the list.
+  async function handleJumpToMessage(chatId, messageId) {
+    if (chatId !== activeChatId) {
+      await selectChat(chatId);
+    }
+    // Wait a tick for messages to load/scroll, then scroll to the anchor.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        messageListRef.current?.scrollToMessage(messageId);
+      });
+    });
   }
 
   async function handleNewChat() {
@@ -257,6 +277,30 @@ export default function App() {
       return;
     }
     updateChatModel(activeChatId, modelId, settings.defaultModelId);
+  }
+
+  // Local-first cloud mirror for personas + folders via Supabase Storage.
+  async function handleSync() {
+    if (!session) return;
+    setSyncState({ busy: true, msg: 'Backing up…' });
+    try {
+      const push = await import('./lib/orgSync').then((m) => m.pushOrgData(session));
+      if (!push.ok) {
+        setSyncState({ busy: false, msg: `Backup failed: ${push.reason}` });
+        return;
+      }
+      setSyncState({ busy: true, msg: 'Restoring…' });
+      const pull = await import('./lib/orgSync').then((m) => m.pullOrgData(session));
+      if (!pull.ok) {
+        setSyncState({ busy: false, msg: `Restore failed: ${pull.reason}` });
+        return;
+      }
+      setSyncState({ busy: false, msg: `Synced (${pull.applied} item${pull.applied === 1 ? '' : 's'} restored)` });
+    } catch (err) {
+      setSyncState({ busy: false, msg: `Sync error: ${err.message || 'unknown'}` });
+    } finally {
+      setTimeout(() => setSyncState({ busy: false, msg: '' }), 3500);
+    }
   }
 
   async function autoTitle(chatId, userText, assistantText) {
@@ -354,6 +398,8 @@ export default function App() {
 
     setError('');
     const signal = startStreaming();
+    genStartRef.current = performance.now();
+    genStartRef.current = performance.now();
 
     try {
       const currentChat = chats.find((c) => c.id === chatId);
@@ -419,7 +465,7 @@ export default function App() {
 
       const { data: aMsg, error: aErr } = await supabase
         .from('messages')
-        .insert({ chat_id: chatId, role: 'assistant', content: full, model: activeModel.id, usage: usage || null })
+        .insert({ chat_id: chatId, role: 'assistant', content: full, model: activeModel.id, usage: usage ? { ...usage, gen_ms: Math.round(performance.now() - genStartRef.current) } : null })
         .select()
         .single();
       if (aErr) throw new Error(aErr.message);
@@ -630,7 +676,7 @@ export default function App() {
 
       const { data: aMsg, error: aErr } = await supabase
         .from('messages')
-        .insert({ chat_id: chatId, role: 'assistant', content: full, model: sentModelId, usage: usage || null })
+        .insert({ chat_id: chatId, role: 'assistant', content: full, model: sentModelId, usage: usage ? { ...usage, gen_ms: Math.round(performance.now() - genStartRef.current) } : null })
         .select()
         .single();
       if (aErr) throw new Error(aErr.message);
@@ -695,6 +741,8 @@ export default function App() {
           onSearch={() => setShowSearch(true)}
           folderFilter={folderFilter}
           onFilterFolder={setFolderFilter}
+          onSync={handleSync}
+          syncState={syncState}
         />
 
         {/* Main split-pane wrapper context with safe height boundaries */}
@@ -711,16 +759,20 @@ export default function App() {
               onMenuClick={() => setSidebarOpen((prev) => !prev)}
               onChatSettings={() => setShowChatSettings(true)}
               onToggleTheme={handleToggleTheme}
-              onCompare={() => setShowCompare(true)}
+            onCompare={() => setShowCompare(true)}
+            onImportExport={() => setShowImportExport(true)}
+            onPresets={() => setShowPresets(true)}
             />
 
             {activeChatId ? (
               <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
               
                 <MessageList
+                  ref={messageListRef}
                   messages={messages}
                   urlMap={urlMap}
                   streamingText={streamingText}
+                  streamStats={streamStats}
                   onEditMessage={handleEditMessage}
                   onRegenerate={handleRegenerate}
                   onFeedback={handleFeedback}
@@ -806,6 +858,7 @@ export default function App() {
         <Suspense fallback={null}>
           <ChatSettings
             chat={chats.find((c) => c.id === activeChatId)}
+            settings={settings}
             messages={messages}
             onUpdate={updateChatSettings}
             onClose={() => setShowChatSettings(false)}
@@ -816,6 +869,8 @@ export default function App() {
       {showSearch && (
         <Suspense fallback={null}>
           <SearchModal
+            activeChatId={activeChatId}
+            onJumpToMessage={handleJumpToMessage}
             onSelectChat={selectChat}
             onClose={() => setShowSearch(false)}
           />
@@ -838,6 +893,26 @@ export default function App() {
           <CompareModal
             settings={settings}
             onClose={() => setShowCompare(false)}
+          />
+        </Suspense>
+      )}
+
+      {showImportExport && (
+        <Suspense fallback={null}>
+          <ImportExportModal
+            chat={activeChatId ? chats.find((c) => c.id === activeChatId) : null}
+            messages={messages}
+            session={session}
+            onCreateRestored={(id) => selectChat(id)}
+            onClose={() => setShowImportExport(false)}
+          />
+        </Suspense>
+      )}
+
+      {showPresets && (
+        <Suspense fallback={null}>
+          <PresetsModal
+            onClose={() => setShowPresets(false)}
           />
         </Suspense>
       )}

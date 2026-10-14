@@ -53,3 +53,8 @@ export function deletePersona(id) {
 export function getPersona(id) {
   return loadPersonas().find((p) => p.id === id) || null;
 }
+
+// Persist a full personas array and notify listeners (used by sync).
+export function savePersonas(list) {
+  save(Array.isArray(list) ? list : []);
+}

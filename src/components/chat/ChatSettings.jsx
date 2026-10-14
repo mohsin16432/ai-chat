@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Settings, X, RotateCcw } from 'lucide-react';
 import { getContextOpts, setContextOpts } from '../../lib/contextMgmt';
+import { getModelById } from '../../lib/models';
 
 const DEFAULTS = {
   system_prompt: '',
@@ -15,6 +16,7 @@ export default function ChatSettings({ chat, messages, onUpdate, onClose }) {
     top_p: chat?.top_p ?? DEFAULTS.top_p,
   });
   const [contextOpts, setContextOptsState] = useState(() => getContextOpts(chat?.id));
+  const [modelId, setModelId] = useState(chat?.model ?? null);
 
   useEffect(() => {
     setDraft({
@@ -22,10 +24,11 @@ export default function ChatSettings({ chat, messages, onUpdate, onClose }) {
       temperature: chat?.temperature ?? DEFAULTS.temperature,
       top_p: chat?.top_p ?? DEFAULTS.top_p,
     });
+    setModelId(chat?.model ?? null);
   }, [chat?.id]);
 
   function handleSave() {
-    onUpdate(chat.id, draft);
+    onUpdate(chat.id, { ...draft, model: modelId });
     onClose();
   }
 
@@ -95,6 +98,27 @@ export default function ChatSettings({ chat, messages, onUpdate, onClose }) {
           />
           <p className="text-xs" style={{ color: 'var(--color-text-faint)' }}>
             Instructions that guide the AI's behavior for this chat. Leave empty for default behavior.
+          </p>
+        </div>
+
+        {/* Per-chat model */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
+            Model (per chat)
+          </label>
+          <select
+            value={modelId || ''}
+            onChange={(e) => setModelId(e.target.value || null)}
+            className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+            style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+          >
+            <option value="">Use default ({getModelById(settings, settings?.defaultModelId)?.name || 'none'})</option>
+            {(settings?.models || []).map((m) => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </select>
+          <p className="text-xs" style={{ color: 'var(--color-text-faint)' }}>
+            Overrides the default model for this chat only. Switch anytime — changes apply to the next message.
           </p>
         </div>
 

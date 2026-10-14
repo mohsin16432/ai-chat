@@ -40,6 +40,12 @@ export function useKeyboardShortcuts(handlers) {
         e.preventDefault();
         handlers.onToggleSidebar?.();
       }
+
+      // Cmd/Ctrl + Shift + P → Prompt presets
+      if (isMod && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        handlers.onPresets?.();
+      }
     }
 
     window.addEventListener('keydown', onKeyDown);

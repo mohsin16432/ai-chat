@@ -31,6 +31,27 @@ export default function ChatInput({ onSend, sending, disabled, onCancel }) {
     return () => window.removeEventListener('skills-changed', handleSkillsChange);
   }, []);
 
+  // Adopt a prompt preset pushed from the Presets modal.
+  useEffect(() => {
+    function handleInsert(e) {
+      const text = e.detail?.text;
+      if (typeof text !== 'string') return;
+      setInput(text);
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    }
+    window.addEventListener('insert-preset', handleInsert);
+    return () => window.removeEventListener('insert-preset', handleInsert);
+  }, []);
+
+  // Report the current composer text when the Presets modal requests it.
+  useEffect(() => {
+    function handleRequest() {
+      window.dispatchEvent(new CustomEvent('composer-text', { detail: { text: input } }));
+    }
+    window.addEventListener('request-composer-text', handleRequest);
+    return () => window.removeEventListener('request-composer-text', handleRequest);
+  }, [input]);
+
   function handleInputFocus() {
     setSkills(loadSkills());
   }

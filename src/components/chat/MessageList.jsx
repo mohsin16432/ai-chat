@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Loader2, Bot, ArrowDown, Sparkles } from 'lucide-react';
@@ -14,10 +14,21 @@ function normalizeMarkdownTables(content) {
   return result;
 }
 
-export default function MessageList({ messages, urlMap, streamingText, onEditMessage, onRegenerate, onFeedback, settings, chats, activeChatId }) {
+const MessageList = forwardRef(function MessageList({ messages, urlMap, streamingText, streamStats, onEditMessage, onRegenerate, onFeedback, settings, chats, activeChatId }, ref) {
   const containerRef = useRef(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showScrollBadge, setShowScrollBadge] = useState(false);
+
+  // Public: scroll a specific message into view and flash a highlight.
+  function scrollToMessage(messageId) {
+    const el = containerRef.current?.querySelector(`#msg-${CSS.escape(messageId)}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('msg-flash');
+    window.setTimeout(() => el.classList.remove('msg-flash'), 1400);
+  }
+
+  useImperativeHandle(ref, () => ({ scrollToMessage }), []);
 
   const handleScroll = () => {
     if (!containerRef.current) return;
@@ -208,6 +219,17 @@ a({ href, children, ...props }) {
                     </ReactMarkdown>
                   </div>
                 )}
+
+                {/* Live latency / throughput meter */}
+                {streamStats && (
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px]" style={{ color: 'var(--color-text-faint)' }}>
+                    {streamStats.ttftMs !== null && (
+                      <span>⚡ first token {streamStats.ttftMs} ms</span>
+                    )}
+                    <span>⏱ {streamStats.elapsedMs} ms</span>
+                    <span>🚀 ~{streamStats.tokensPerSec} tok/s</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -231,4 +253,6 @@ a({ href, children, ...props }) {
       )}
     </div>
   );
-}
+});
+
+export default MessageList;

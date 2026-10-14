@@ -1,8 +1,8 @@
-import { Menu, SlidersHorizontal, Sun, Moon, GitCompareArrows } from 'lucide-react';
+import { Menu, SlidersHorizontal, Sun, Moon, GitCompareArrows, FileDown, Bookmark } from 'lucide-react';
 import ModelPicker from '../chat/ModelPicker';
 import ExportButton from '../chat/ExportButton';
 
-export default function Header({ settings, chats, activeChatId, messages, onChangeModel, onMenuClick, onChatSettings, onToggleTheme, onCompare }) {
+export default function Header({ settings, chats, activeChatId, messages, onChangeModel, onMenuClick, onChatSettings, onToggleTheme, onCompare, onImportExport, onPresets }) {
   const activeChat = chats.find((c) => c.id === activeChatId);
   const isLight = settings?.theme === 'light';
   const activeChatTitle = activeChat?.title && activeChat.title.trim() && activeChat.title !== 'New chat'
@@ -105,6 +105,22 @@ export default function Header({ settings, chats, activeChatId, messages, onChan
             {activeChatId && (
               <>
                 <ExportButton chat={activeChat} messages={messages} />
+                <button
+                  onClick={onImportExport}
+                  className="p-2 rounded-xl transition-colors poe-control"
+                  style={{ color: 'var(--color-text-muted)' }}
+                  title="Import / Export chat"
+                >
+                  <FileDown size={16} />
+                </button>
+                <button
+                  onClick={onPresets}
+                  className="p-2 rounded-xl transition-colors poe-control"
+                  style={{ color: 'var(--color-text-muted)' }}
+                  title="Prompt presets"
+                >
+                  <Bookmark size={16} />
+                </button>
                 <button
                   onClick={onChatSettings}
                   className="p-2 rounded-xl transition-colors poe-control"

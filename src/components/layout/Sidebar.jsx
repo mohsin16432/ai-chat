@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import ChatListItem from '../chat/ChatListItem';
-import { Settings as SettingsIcon, LogOut, X, Search, SquarePen, MessageSquare, ArrowRight, FolderPlus, Sparkles, Layers } from 'lucide-react';
+import { Settings as SettingsIcon, LogOut, X, Search, SquarePen, MessageSquare, ArrowRight, FolderPlus, Sparkles, Layers, RefreshCw, Loader2 } from 'lucide-react';
 import { ArrowLeft, House, History } from 'lucide-react';
 import { useChatSearch } from '../../hooks/useChatSearch';
 
@@ -26,6 +26,8 @@ export default function Sidebar({
   isOpen,
   onClose,
   onSearch,
+  onSync,
+  syncState,
 }) {
   const [mobileSection, setMobileSection] = useState('history');
   const [mobileSearchQuery, setMobileSearchQuery] = useState('');
@@ -459,6 +461,34 @@ export default function Sidebar({
               <Sparkles size={14} style={{ color: 'var(--color-accent-hover)' }} />
               Personas
             </button>
+          </div>
+
+          {/* Sync button */}
+          <div className="px-3 pb-2">
+            <button
+              onClick={onSync}
+              disabled={syncState?.busy}
+              className="w-full flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-medium transition-colors"
+              style={{
+                background: 'var(--color-surface)',
+                color: syncState?.busy ? 'var(--color-text-faint)' : 'var(--color-text-muted)',
+                border: '1px solid var(--color-border)',
+                opacity: syncState?.busy ? 0.6 : 1,
+              }}
+              title="Back up or restore personas & folders to your account"
+            >
+              {syncState?.busy ? (
+                <Loader2 size={14} className="animate-spin" style={{ color: 'var(--color-accent-hover)' }} />
+              ) : (
+                <RefreshCw size={14} style={{ color: 'var(--color-accent-hover)' }} />
+              )}
+              {syncState?.busy ? 'Syncing…' : 'Sync personas & folders'}
+            </button>
+            {syncState?.msg && (
+              <p className="text-[10px] text-center mt-1.5 px-1" style={{ color: 'var(--color-text-faint)' }}>
+                {syncState.msg}
+              </p>
+            )}
           </div>
 
           {/* Bottom section */}
