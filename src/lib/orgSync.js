@@ -2,7 +2,10 @@ import { supabase } from './supabase';
 import { loadFolders, saveFolders } from './folders';
 import { loadPersonas, savePersonas } from './personas';
 
-const STORAGE_PATH = 'sync/org-data.json';
+// Storage RLS on the `media` bucket only permits object paths prefixed with the
+// authenticated user's id (same convention the file-upload feature uses: `${uid}/...`).
+// Use the same prefix so the upload does not violate row-level security.
+const STORAGE_PATH = (uid) => `${uid}/sync/org-data.json`;
 
 // Local-first: localStorage is the source of truth. Supabase Storage (the
 // existing `media` bucket) is used as a cross-device mirror so personas and
@@ -10,14 +13,14 @@ const STORAGE_PATH = 'sync/org-data.json';
 async function uploadBlob(session, blob) {
   const { error } = await supabase.storage
     .from('media')
-    .upload(STORAGE_PATH, blob, { upsert: true, contentType: 'application/json' });
+    .upload(STORAGE_PATH(session.user.id), blob, { upsert: true, contentType: 'application/json' });
   if (error) throw error;
 }
 
 async function downloadBlob(session) {
   const { data, error } = await supabase.storage
     .from('media')
-    .download(STORAGE_PATH);
+    .download(STORAGE_PATH(session.user.id));
   if (error) return null;
   if (!data) return null;
   const text = await data.text();
