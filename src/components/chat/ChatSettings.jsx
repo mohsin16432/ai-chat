@@ -9,7 +9,7 @@ const DEFAULTS = {
   top_p: 1.0,
 };
 
-export default function ChatSettings({ chat, messages, onUpdate, onClose }) {
+export default function ChatSettings({ chat, settings, messages, onUpdate, onClose }) {
   const [draft, setDraft] = useState({
     system_prompt: chat?.system_prompt ?? DEFAULTS.system_prompt,
     temperature: chat?.temperature ?? DEFAULTS.temperature,
