@@ -1,0 +1,1 @@
+import{t as e}from"./supabase-client-BN2bhVnw.js";var t=e(`https://aouseeojioorrktfcjrn.supabase.co`,`sb_publishable_04kQZXGKFHdPC7dEG4JPsA_wzZYRjjF`);export{t};
